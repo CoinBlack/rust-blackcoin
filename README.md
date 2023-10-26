@@ -1,6 +1,6 @@
 # Rust Blackcoin
 
-This repository was forked from [rust-bitcoin](https://github.com/rust-bitcoin) in an effort to work with Blackcoin in Rust.
+This repository was forked from [rust-bitcoin](https://github.com/rust-bitcoin/rust-bitcoin) in an effort to work with Blackcoin in Rust.
 
 ### Supports (or should support)
 
