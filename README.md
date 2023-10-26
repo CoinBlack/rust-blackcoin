@@ -1,3 +1,20 @@
+# Rust Blackcoin
+
+This repository was forked from [rust-bitcoin](https://github.com/rust-bitcoin) in an effort to work with Blackcoin in Rust.
+
+### Supports (or should support)
+
+* De/serialization of Blackcoin protocol network messages
+* De/serialization of blocks and transactions
+* Script de/serialization
+* Private keys and address creation, de/serialization and validation (including full BIP32 support)
+* PSBT v0 de/serialization and all but the Input Finalizer role. Use [rust-miniscript](https://docs.rs/miniscript/latest/miniscript/psbt/index.html) to finalize.
+
+For JSONRPC interaction with Blackcoin More, it is recommended to use
+[rust-blackcoinmore-rpc](https://github.com/CoinBlack/rust-blackcoinmore-rpc).
+
+See below for the original Bitcoin README.
+
 <div align="center">
   <h1>Rust Bitcoin</h1>
 
