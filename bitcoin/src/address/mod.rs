@@ -937,12 +937,11 @@ mod tests {
 
     #[test]
     fn test_p2wpkh() {
-        // stolen from Bitcoin transaction: b3c8c2b6cfc335abbcb2c7823a8453f55d64b2b5125a9a61e8737230cdb8ce20
-        let mut key = "033bc8c83c52df5712229a2f72206d90192366c36428cb0c12b6af98324d97bfbc"
+        let mut key = "03818de5f3d676fc0ab82b9dfa298e4e01105cebb36e28256b414348596246a235"
             .parse::<PublicKey>()
             .unwrap();
         let addr = Address::p2wpkh(&key, Bitcoin).unwrap();
-        assert_eq!(&addr.to_string(), "bc1qvzvkjn4q3nszqxrv3nraga2r822xjty3ykvkuw");
+        assert_eq!(&addr.to_string(), "blk1qf5w5dpa5mx5mwhghd5gf5qmy6d3q6g36d4sf5p");
         assert_eq!(addr.address_type(), Some(AddressType::P2wpkh));
         roundtrips(&addr);
 
@@ -953,12 +952,11 @@ mod tests {
 
     #[test]
     fn test_p2wsh() {
-        // stolen from Bitcoin transaction 5df912fda4becb1c29e928bec8d64d93e9ba8efa9b5b405bd683c86fd2c65667
-        let script = ScriptBuf::from_hex("52210375e00eb72e29da82b89367947f29ef34afb75e8654f6ea368e0acdfd92976b7c2103a1b26313f430c4b15bb1fdce663207659d8cac749a0e53d70eff01874496feff2103c96d495bfdd5ba4145e3e046fee45e84a8a48ad05bd8dbb395c011a32cf9f88053ae").unwrap();
+        let script = ScriptBuf::from_hex("512102547e587315dbb62c5a9b0e7756a8bdf0e2a6330902f3ad78597ecc62de4a806551ae").unwrap();
         let addr = Address::p2wsh(&script, Bitcoin);
         assert_eq!(
             &addr.to_string(),
-            "bc1qwqdg6squsna38e46795at95yu9atm8azzmyvckulcc7kytlcckxswvvzej"
+            "blk1qsu6jyu4cnm7x36w3lsj2c0tyt6glsgmun2n6cg0nr8fp0vgdva8qp5lux2"
         );
         assert_eq!(addr.address_type(), Some(AddressType::P2wsh));
         roundtrips(&addr);
@@ -1027,11 +1025,11 @@ mod tests {
     #[test]
     fn test_address_type() {
         let addresses = [
-            ("1QJVDzdqb1VpbDK7uDeyVXy9mR27CJiyhY", Some(AddressType::P2pkh)),
-            ("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k", Some(AddressType::P2sh)),
-            ("bc1qvzvkjn4q3nszqxrv3nraga2r822xjty3ykvkuw", Some(AddressType::P2wpkh)),
+            ("BPDTrrn91hQ7tuDDqtbMUxW7assCoLsUni", Some(AddressType::P2pkh)),
+            ("bVvWZytGW27hMnn8ojUF6MnV65xviuBmoH", Some(AddressType::P2sh)),
+            ("blk1q57ntsj2v2aqpfepsk6lct6jmyr8wcedmx3ts73", Some(AddressType::P2wpkh)),
             (
-                "bc1qwqdg6squsna38e46795at95yu9atm8azzmyvckulcc7kytlcckxswvvzej",
+                "blk1qslnt20heyvy9zz8urgzp9rdvc0sm8e6q5qc98hrmn7wjsy2387rqp5kwms",
                 Some(AddressType::P2wsh),
             ),
             (
@@ -1145,8 +1143,8 @@ mod tests {
         }
 
         for el in [
-            "bcrt1q2nfxmhd4n3c8834pj72xagvyr9gl57n5r94fsl",
-            "bc1qwqdg6squsna38e46795at95yu9atm8azzmyvckulcc7kytlcckxswvvzej",
+            "blrt1qyjq8htmgedctnhssw6tth7gyrkyrgpxktqxlhe",
+            "blk1qycd4vmshwf8vxcqxk4qae2egykwuz974nfdzfwwm4hs56tqsanvs3k5q8a",
         ]
         .iter()
         {
