@@ -12,8 +12,8 @@ use hashes::{sha256d, Hash, HashEngine};
 pub use self::message_signing::{MessageSignature, MessageSignatureError};
 use crate::consensus::{encode, Encodable};
 
-/// The prefix for signed messages using Bitcoin's message signing protocol.
-pub const BITCOIN_SIGNED_MSG_PREFIX: &[u8] = b"\x18Bitcoin Signed Message:\n";
+/// The prefix for signed messages using Blackcoin's message signing protocol.
+pub const BITCOIN_SIGNED_MSG_PREFIX: &[u8] = b"\x18BlackCoin Signed Message:\n";
 
 #[cfg(feature = "secp-recovery")]
 mod message_signing {
@@ -27,7 +27,7 @@ mod message_signing {
     use crate::address::{Address, AddressType};
     use crate::crypto::key::PublicKey;
 
-    /// An error used for dealing with Bitcoin Signed Messages.
+    /// An error used for dealing with Blackcoin Signed Messages.
     #[derive(Debug, Clone, PartialEq, Eq)]
     #[non_exhaustive]
     pub enum MessageSignatureError {
@@ -212,7 +212,7 @@ mod tests {
         let hash = signed_msg_hash("test");
         assert_eq!(
             hash.to_string(),
-            "a6f87fe6d58a032c320ff8d1541656f0282c2c7bfcc69d61af4c8e8ed528e49c"
+            "1871bfb25d8f8781fc628dc1cfb9f4f88596cee174cf1df15e12803b37b72b52"
         );
     }
 
