@@ -638,7 +638,7 @@ impl Address {
     /// # })().unwrap();
     /// # assert_eq!(writer, ADDRESS);
     /// ```
-    pub fn to_qr_uri(&self) -> String { format!("bitcoin:{:#}", self) }
+    pub fn to_qr_uri(&self) -> String { format!("blackcoin:{:#}", self) }
 
     /// Returns true if the given pubkey is directly related to the address payload.
     ///
@@ -877,29 +877,29 @@ mod tests {
     fn test_p2pkh_address_58() {
         let addr = Address::new(
             Bitcoin,
-            Payload::PubkeyHash("162c5ea71c0b23f5b9022ef047c4a86470a5b070".parse().unwrap()),
+            Payload::PubkeyHash("0f3d16a50264456bbc771f40b36fefe69d30dc05".parse().unwrap()),
         );
 
         assert_eq!(
             addr.script_pubkey(),
-            ScriptBuf::from_hex("76a914162c5ea71c0b23f5b9022ef047c4a86470a5b07088ac").unwrap()
+            ScriptBuf::from_hex("76a9140f3d16a50264456bbc771f40b36fefe69d30dc0588ac").unwrap()
         );
-        assert_eq!(&addr.to_string(), "132F25rTsvBdp9JzLLBHP5mvGY66i1xdiM");
+        assert_eq!(&addr.to_string(), "B5qew6MwFjfH3fqNCb2eqbbMbRmaN67MD3");
         assert_eq!(addr.address_type(), Some(AddressType::P2pkh));
         roundtrips(&addr);
     }
 
     #[test]
     fn test_p2pkh_from_key() {
-        let key = "048d5141948c1702e8c95f438815794b87f706a8d4cd2bffad1dc1570971032c9b6042a0431ded2478b5c9cf2d81c124a5e57347a3c63ef0e7716cf54d613ba183".parse::<PublicKey>().unwrap();
+        let key = "04178abe9710e08f04b423be5a90c2b8d6987697dc53c0f2958e64e3d893fcc7c51ecdc85e997eec2c73cdcc21f70e3f3601d100fbb1f3275c48b65a519e327827".parse::<PublicKey>().unwrap();
         let addr = Address::p2pkh(&key, Bitcoin);
-        assert_eq!(&addr.to_string(), "1QJVDzdqb1VpbDK7uDeyVXy9mR27CJiyhY");
+        assert_eq!(&addr.to_string(), "BHbXiw6Zvezk7pYYwbKyPrgprFkHLggcn1");
 
-        let key = "03df154ebfcf29d29cc10d5c2565018bce2d9edbab267c31d2caf44a63056cf99f"
+        let key = "0378c706a3c41ef40aff9e503d6e1410d62a9833512e1d38f30905c11e707e93ba"
             .parse::<PublicKey>()
             .unwrap();
         let addr = Address::p2pkh(&key, Testnet);
-        assert_eq!(&addr.to_string(), "mqkhEMH6NCeYjFybv7pvFC22MFeaNT9AQC");
+        assert_eq!(&addr.to_string(), "n3vpYCTpWg4Bw7k3tW3KTwAEnCcVmBDMbx");
         assert_eq!(addr.address_type(), Some(AddressType::P2pkh));
         roundtrips(&addr);
     }
@@ -908,14 +908,14 @@ mod tests {
     fn test_p2sh_address_58() {
         let addr = Address::new(
             Bitcoin,
-            Payload::ScriptHash("162c5ea71c0b23f5b9022ef047c4a86470a5b070".parse().unwrap()),
+            Payload::ScriptHash("fc7d8105ebd93eddc1a1a5b5af26a049cb14d58e".parse().unwrap()),
         );
 
         assert_eq!(
             addr.script_pubkey(),
-            ScriptBuf::from_hex("a914162c5ea71c0b23f5b9022ef047c4a86470a5b07087").unwrap(),
+            ScriptBuf::from_hex("a914fc7d8105ebd93eddc1a1a5b5af26a049cb14d58e87").unwrap(),
         );
-        assert_eq!(&addr.to_string(), "33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k");
+        assert_eq!(&addr.to_string(), "bbkKKk2GT6wB5Qmpgtdd3gCnnsykXfD8Qu");
         assert_eq!(addr.address_type(), Some(AddressType::P2sh));
         roundtrips(&addr);
     }
@@ -966,12 +966,11 @@ mod tests {
 
     #[test]
     fn test_p2shwpkh() {
-        // stolen from Bitcoin transaction: ad3fd9c6b52e752ba21425435ff3dd361d6ac271531fc1d2144843a9f550ad01
-        let mut key = "026c468be64d22761c30cd2f12cbc7de255d592d7904b1bab07236897cc4c2e766"
+        let mut key = "02af4ad6e0f1b81b6636e07139fc4948532e0dc1bca915fc0d0c3a231029ca3292"
             .parse::<PublicKey>()
             .unwrap();
         let addr = Address::p2shwpkh(&key, Bitcoin).unwrap();
-        assert_eq!(&addr.to_string(), "3QBRmWNqqBGme9er7fMkGqtZtp4gjMFxhE");
+        assert_eq!(&addr.to_string(), "bWJbbsS2rSdf6LqWMxpr2AUamXzgfpB6S4");
         assert_eq!(addr.address_type(), Some(AddressType::P2sh));
         roundtrips(&addr);
 
@@ -1011,7 +1010,7 @@ mod tests {
             address: Address<V>,
         }
 
-        let addr_str = "33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k";
+        let addr_str = "bSzmVGyeqRJPDanTWovPvNSqD2HrWkMY8C";
         let unchecked = Address::from_str(addr_str).unwrap();
 
         assert_eq!(
@@ -1060,41 +1059,41 @@ mod tests {
         use serde_json;
 
         let addr =
-            Address::from_str("132F25rTsvBdp9JzLLBHP5mvGY66i1xdiM").unwrap().assume_checked();
+            Address::from_str("BK1iscer7M7aiTBPo9iLFuits6pqYyEKQ8").unwrap().assume_checked();
         let json = serde_json::to_value(&addr).unwrap();
         assert_eq!(
             json,
-            serde_json::Value::String("132F25rTsvBdp9JzLLBHP5mvGY66i1xdiM".to_owned())
+            serde_json::Value::String("BK1iscer7M7aiTBPo9iLFuits6pqYyEKQ8".to_owned())
         );
         let into: Address = serde_json::from_value::<Address<_>>(json).unwrap().assume_checked();
         assert_eq!(addr.to_string(), into.to_string());
         assert_eq!(
             into.script_pubkey(),
-            ScriptBuf::from_hex("76a914162c5ea71c0b23f5b9022ef047c4a86470a5b07088ac").unwrap()
+            ScriptBuf::from_hex("76a9149fbe2c1802902016679f34446dc7a4b09872173e88ac").unwrap()
         );
 
         let addr =
-            Address::from_str("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k").unwrap().assume_checked();
+            Address::from_str("bCoDCTKxY9vNAatcgs8UfbsQbTrdy85szS").unwrap().assume_checked();
         let json = serde_json::to_value(&addr).unwrap();
         assert_eq!(
             json,
-            serde_json::Value::String("33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k".to_owned())
+            serde_json::Value::String("bCoDCTKxY9vNAatcgs8UfbsQbTrdy85szS".to_owned())
         );
         let into: Address = serde_json::from_value::<Address<_>>(json).unwrap().assume_checked();
         assert_eq!(addr.to_string(), into.to_string());
         assert_eq!(
             into.script_pubkey(),
-            ScriptBuf::from_hex("a914162c5ea71c0b23f5b9022ef047c4a86470a5b07087").unwrap()
+            ScriptBuf::from_hex("a91400bebed3b50b139d9f7632ace2a774f373675bea87").unwrap()
         );
 
         let addr: Address<NetworkUnchecked> =
-            Address::from_str("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7")
+            Address::from_str("blk1q2ny6tzxcj3pmph5uf0ph4rgz5396lku8eqxtsxj4g797pwjlpqcqg2h7sn")
                 .unwrap();
         let json = serde_json::to_value(addr).unwrap();
         assert_eq!(
             json,
             serde_json::Value::String(
-                "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7".to_owned()
+                "blk1q2ny6tzxcj3pmph5uf0ph4rgz5396lku8eqxtsxj4g797pwjlpqcqg2h7sn".to_owned()
             )
         );
 
@@ -1138,11 +1137,11 @@ mod tests {
     #[test]
     fn test_qr_string() {
         for el in
-            ["132F25rTsvBdp9JzLLBHP5mvGY66i1xdiM", "33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k"].iter()
+            ["B6721rwWhbAK35A64Nra9mrpakimnsr8Jg", "bEJd6m9KbsMvvscqEhuKFJDvNqUJCEMz2J"].iter()
         {
             let addr =
                 Address::from_str(el).unwrap().require_network(Network::Bitcoin).expect("mainnet");
-            assert_eq!(addr.to_qr_uri(), format!("bitcoin:{}", el));
+            assert_eq!(addr.to_qr_uri(), format!("blackcoin:{}", el));
         }
 
         for el in [
@@ -1152,7 +1151,7 @@ mod tests {
         .iter()
         {
             let addr = Address::from_str(el).unwrap().assume_checked();
-            assert_eq!(addr.to_qr_uri(), format!("bitcoin:{}", el.to_ascii_uppercase()));
+            assert_eq!(addr.to_qr_uri(), format!("blackcoin:{}", el.to_ascii_uppercase()));
         }
     }
 
@@ -1226,20 +1225,20 @@ mod tests {
 
     #[test]
     fn test_is_related_to_pubkey_p2wpkh() {
-        let address_string = "bc1qhvd6suvqzjcu9pxjhrwhtrlj85ny3n2mqql5w4";
+        let address_string = "blk1qjpe9zucdpxffkeyrnue45tap2jwx7khhefnjag";
         let address = Address::from_str(address_string)
             .expect("address")
             .require_network(Network::Bitcoin)
             .expect("mainnet");
 
-        let pubkey_string = "0347ff3dacd07a1f43805ec6808e801505a6e18245178609972a68afbc2777ff2b";
+        let pubkey_string = "0397aca21423436fbf3dae2121fd1d3ae3b46dff47df38e4fe339a38a9273ff8c5";
         let pubkey = PublicKey::from_str(pubkey_string).expect("pubkey");
 
         let result = address.is_related_to_pubkey(&pubkey);
         assert!(result);
 
         let unused_pubkey = PublicKey::from_str(
-            "02ba604e6ad9d3864eda8dc41c62668514ef7d5417d3b6db46e45cc4533bff001c",
+            "02e81c12b9db45dac0d775515679683c56210080fc66aca3676121fc376abd5b4d",
         )
         .expect("pubkey");
         assert!(!address.is_related_to_pubkey(&unused_pubkey))
@@ -1247,20 +1246,20 @@ mod tests {
 
     #[test]
     fn test_is_related_to_pubkey_p2shwpkh() {
-        let address_string = "3EZQk4F8GURH5sqVMLTFisD17yNeKa7Dfs";
+        let address_string = "bJdU95jNeufixTM8edTxgeBAda2aetC22x";
         let address = Address::from_str(address_string)
             .expect("address")
             .require_network(Network::Bitcoin)
             .expect("mainnet");
 
-        let pubkey_string = "0347ff3dacd07a1f43805ec6808e801505a6e18245178609972a68afbc2777ff2b";
+        let pubkey_string = "03f07fde9478fd494384407aa6583977b3fc8a2ed890980d2b11299947ca5049f4";
         let pubkey = PublicKey::from_str(pubkey_string).expect("pubkey");
 
         let result = address.is_related_to_pubkey(&pubkey);
         assert!(result);
 
         let unused_pubkey = PublicKey::from_str(
-            "02ba604e6ad9d3864eda8dc41c62668514ef7d5417d3b6db46e45cc4533bff001c",
+            "02160813f7bfdf2a3bc9bdf0cbbe17d678f02acbb2c57d37ebd67781f437de6427",
         )
         .expect("pubkey");
         assert!(!address.is_related_to_pubkey(&unused_pubkey))
@@ -1268,20 +1267,20 @@ mod tests {
 
     #[test]
     fn test_is_related_to_pubkey_p2pkh() {
-        let address_string = "1J4LVanjHMu3JkXbVrahNuQCTGCRRgfWWx";
+        let address_string = "B4VsKWxKdXYsRiwavyNXGgWmqs2n8F7jSM";
         let address = Address::from_str(address_string)
             .expect("address")
             .require_network(Network::Bitcoin)
             .expect("mainnet");
 
-        let pubkey_string = "0347ff3dacd07a1f43805ec6808e801505a6e18245178609972a68afbc2777ff2b";
+        let pubkey_string = "034730e15d59bf36c80ebc540c05fa6b281078ce45079d9f5a2e187ca4f201e65a";
         let pubkey = PublicKey::from_str(pubkey_string).expect("pubkey");
 
         let result = address.is_related_to_pubkey(&pubkey);
         assert!(result);
 
         let unused_pubkey = PublicKey::from_str(
-            "02ba604e6ad9d3864eda8dc41c62668514ef7d5417d3b6db46e45cc4533bff001c",
+            "0253f61cf0191f2186613c268129bba94f394c8bd8e4b574441a6c073536669035",
         )
         .expect("pubkey");
         assert!(!address.is_related_to_pubkey(&unused_pubkey))

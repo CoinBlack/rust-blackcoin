@@ -786,27 +786,27 @@ mod tests {
 
         // mainnet uncompressed
         let sk =
-            PrivateKey::from_wif("5JYkZjmN7PVMjJUfJWfRFwtuXTGB439XV6faajeHPAM9Z2PT2R3").unwrap();
+            PrivateKey::from_wif("5JfVx8ogELSKLnbfiiwjpX5twSQZmb4TXwdhYdiaAXScEoLtPHC").unwrap();
         assert_eq!(sk.network, Bitcoin);
         assert!(!sk.compressed);
-        assert_eq!(&sk.to_wif(), "5JYkZjmN7PVMjJUfJWfRFwtuXTGB439XV6faajeHPAM9Z2PT2R3");
+        assert_eq!(&sk.to_wif(), "5JfVx8ogELSKLnbfiiwjpX5twSQZmb4TXwdhYdiaAXScEoLtPHC");
 
         let secp = Secp256k1::new();
         let mut pk = sk.public_key(&secp);
         assert!(!pk.compressed);
-        assert_eq!(&pk.to_string(), "042e58afe51f9ed8ad3cc7897f634d881fdbe49a81564629ded8156bebd2ffd1af191923a2964c177f5b5923ae500fca49e99492d534aa3759d6b25a8bc971b133");
-        assert_eq!(pk, PublicKey::from_str("042e58afe51f9ed8ad3cc7897f634d881fdbe49a81564629ded8156bebd2ffd1af191923a2964c177f5b5923ae500fca49e99492d534aa3759d6b25a8bc971b133").unwrap());
+        assert_eq!(&pk.to_string(), "04583c64ca2b3b3df27d6948ccac710910c05eb72ff072fd4b3c47682b6f4ed725a08b52ea223f17d5d4e3d9f3db7d2d8744bf6e665a86db14b983260c8e3cae4b");
+        assert_eq!(pk, PublicKey::from_str("04583c64ca2b3b3df27d6948ccac710910c05eb72ff072fd4b3c47682b6f4ed725a08b52ea223f17d5d4e3d9f3db7d2d8744bf6e665a86db14b983260c8e3cae4b").unwrap());
         let addr = Address::p2pkh(&pk, sk.network);
-        assert_eq!(&addr.to_string(), "1GhQvF6dL8xa6wBxLnWmHcQsurx9RxiMc8");
+        assert_eq!(&addr.to_string(), "BLEaWznUpyCtsLAGPAKmSsxy94etci25a2");
         pk.compressed = true;
         assert_eq!(
             &pk.to_string(),
-            "032e58afe51f9ed8ad3cc7897f634d881fdbe49a81564629ded8156bebd2ffd1af"
+            "03583c64ca2b3b3df27d6948ccac710910c05eb72ff072fd4b3c47682b6f4ed725"
         );
         assert_eq!(
             pk,
             PublicKey::from_str(
-                "032e58afe51f9ed8ad3cc7897f634d881fdbe49a81564629ded8156bebd2ffd1af"
+                "03583c64ca2b3b3df27d6948ccac710910c05eb72ff072fd4b3c47682b6f4ed725"
             )
             .unwrap()
         );
