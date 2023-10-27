@@ -557,6 +557,11 @@ impl TxOut {
             script_pubkey,
         }
     }
+
+    /// Blackcoin: used for identifying coinstake transactions.
+    pub fn is_empty(&self) -> bool {
+        self.value == Amount::ZERO && self.script_pubkey.is_empty()
+    }
 }
 
 /// Returns the total number of bytes that this script pubkey would contribute to a transaction.
@@ -805,6 +810,11 @@ impl Transaction {
     #[doc(alias = "is_coin_base")] // method previously had this name
     pub fn is_coinbase(&self) -> bool {
         self.input.len() == 1 && self.input[0].previous_output.is_null()
+    }
+
+    /// Blackcoin: checks if this is a coinstake transaction.
+    pub fn is_coinstake(&self) -> bool {
+        self.input.len() > 0 && (!self.input[0].previous_output.is_null()) && self.output.len() >= 2 && self.output[0].is_empty()
     }
 
     /// Checks if this is a coinbase transaction.
@@ -1547,6 +1557,14 @@ mod tests {
         let tx: Transaction = deserialize(&tx_bytes).unwrap();
         assert!(!tx.is_coinbase());
     }
+
+    // Blackcoin ToDo: add test for is_coinstake()
+    /*
+    #[test]
+    fn is_coinstake() {
+        // ToDo
+    }
+    */
 
     #[test]
     fn nonsegwit_transaction() {
