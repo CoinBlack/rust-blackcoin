@@ -361,12 +361,15 @@ impl Sequence {
     #[inline]
     pub fn is_final(&self) -> bool { !self.enables_absolute_lock_time() }
 
+    // Blackcoin
+    /*
     /// Returns true if the transaction opted-in to BIP125 replace-by-fee.
     ///
     /// Replace by fee is signaled by the sequence being less than 0xfffffffe which is checked by
     /// this method. Note, this is the highest "non-final" value (see [`Sequence::is_final`]).
     #[inline]
     pub fn is_rbf(&self) -> bool { *self < Sequence::MIN_NO_RBF }
+    */
 
     /// Returns `true` if the sequence has a relative lock-time.
     #[inline]
@@ -808,6 +811,8 @@ impl Transaction {
     #[deprecated(since = "0.31.0", note = "use is_coinbase instead")]
     pub fn is_coin_base(&self) -> bool { self.is_coinbase() }
 
+    // Blackcoin
+    /*
     /// Returns `true` if the transaction itself opted in to be BIP-125-replaceable (RBF).
     ///
     /// # Warning
@@ -820,6 +825,7 @@ impl Transaction {
     pub fn is_explicitly_rbf(&self) -> bool {
         self.input.iter().any(|input| input.sequence.is_rbf())
     }
+    */
 
     /// Returns true if this [`Transaction`]'s absolute timelock is satisfied at `height`/`time`.
     ///
@@ -1888,21 +1894,26 @@ mod tests {
     #[test]
     fn sequence_number() {
         let seq_final = Sequence::from_consensus(0xFFFFFFFF);
-        let seq_non_rbf = Sequence::from_consensus(0xFFFFFFFE);
+        // Blackcoin
+        // let seq_non_rbf = Sequence::from_consensus(0xFFFFFFFE);
         let block_time_lock = Sequence::from_consensus(0xFFFF);
         let unit_time_lock = Sequence::from_consensus(0x40FFFF);
         let lock_time_disabled = Sequence::from_consensus(0x80000000);
 
         assert!(seq_final.is_final());
-        assert!(!seq_final.is_rbf());
+        // Blackcoin
+        // assert!(!seq_final.is_rbf());
         assert!(!seq_final.is_relative_lock_time());
-        assert!(!seq_non_rbf.is_rbf());
+        // Blackcoin
+        // assert!(!seq_non_rbf.is_rbf());
         assert!(block_time_lock.is_relative_lock_time());
         assert!(block_time_lock.is_height_locked());
-        assert!(block_time_lock.is_rbf());
+        // Blackcoin
+        // assert!(block_time_lock.is_rbf());
         assert!(unit_time_lock.is_relative_lock_time());
         assert!(unit_time_lock.is_time_locked());
-        assert!(unit_time_lock.is_rbf());
+        // Blackcoin
+        // assert!(unit_time_lock.is_rbf());
         assert!(!lock_time_disabled.is_relative_lock_time());
     }
 
