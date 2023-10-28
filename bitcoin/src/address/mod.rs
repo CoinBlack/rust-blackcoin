@@ -264,9 +264,9 @@ impl<'a> fmt::Display for AddressEncoding<'a> {
                 let program = witness_program.program().as_bytes();
 
                 if fmt.alternate() {
-                    bech32::segwit::encode_upper_to_fmt_unchecked(fmt, hrp, version, program)
+                    bech32::segwit::encode_upper_to_fmt_unchecked(fmt, *hrp, version, program)
                 } else {
-                    bech32::segwit::encode_lower_to_fmt_unchecked(fmt, hrp, version, program)
+                    bech32::segwit::encode_lower_to_fmt_unchecked(fmt, *hrp, version, program)
                 }
             }
         }
@@ -494,9 +494,9 @@ impl<V: NetworkValidation> Address<V> {
             Network::Testnet | Network::Signet | Network::Regtest => SCRIPT_ADDRESS_PREFIX_TEST,
         };
         let hrp = match self.network() {
-            Network::Bitcoin => hrp::BC,
-            Network::Testnet | Network::Signet => hrp::TB,
-            Network::Regtest => hrp::BCRT,
+            Network::Bitcoin => hrp::BLK,
+            Network::Testnet | Network::Signet => hrp::TBLK,
+            Network::Regtest => hrp::BLRT,
         };
         let encoding = AddressEncoding { payload: self.payload(), p2pkh_prefix, p2sh_prefix, hrp };
 
