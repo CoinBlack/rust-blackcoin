@@ -1008,7 +1008,7 @@ mod tests {
             address: Address<V>,
         }
 
-        let addr_str = "bSzmVGyeqRJPDanTWovPvNSqD2HrWkMY8C";
+        let addr_str = "bbkKKk2GT6wB5Qmpgtdd3gCnnsykXfD8Qu";
         let unchecked = Address::from_str(addr_str).unwrap();
 
         assert_eq!(
@@ -1025,13 +1025,13 @@ mod tests {
     #[test]
     fn test_address_type() {
         let addresses = [
-            ("BPDTrrn91hQ7tuDDqtbMUxW7assCoLsUni", Some(AddressType::P2pkh)),
-            ("bVvWZytGW27hMnn8ojUF6MnV65xviuBmoH", Some(AddressType::P2sh)),
-            ("blk1q57ntsj2v2aqpfepsk6lct6jmyr8wcedmx3ts73", Some(AddressType::P2wpkh)),
+            ("BHbXiw6Zvezk7pYYwbKyPrgprFkHLggcn1", Some(AddressType::P2pkh)),
+            ("bbkKKk2GT6wB5Qmpgtdd3gCnnsykXfD8Qu", Some(AddressType::P2sh)),
+            ("blk1qf5w5dpa5mx5mwhghd5gf5qmy6d3q6g36d4sf5p", Some(AddressType::P2wpkh)),
             (
                 "blk1qslnt20heyvy9zz8urgzp9rdvc0sm8e6q5qc98hrmn7wjsy2387rqp5kwms",
                 Some(AddressType::P2wsh),
-            ),
+            ), 
             (
                 "bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr",
                 Some(AddressType::P2tr),
@@ -1096,14 +1096,14 @@ mod tests {
         );
 
         let addr =
-            Address::from_str("tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7")
+            Address::from_str("tblk1qvefhvq4xays9m098zdydtjkyje6ss4uyt9rj2y")
                 .unwrap()
                 .assume_checked();
         let json = serde_json::to_value(&addr).unwrap();
         assert_eq!(
             json,
             serde_json::Value::String(
-                "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7".to_owned()
+                "tblk1qvefhvq4xays9m098zdydtjkyje6ss4uyt9rj2y".to_owned()
             )
         );
         let into: Address = serde_json::from_value::<Address<_>>(json).unwrap().assume_checked();
@@ -1111,31 +1111,31 @@ mod tests {
         assert_eq!(
             into.script_pubkey(),
             ScriptBuf::from_hex(
-                "00201863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329604903262"
+                "001466537602a6e9205dbca71348d5cac49675085784"
             )
             .unwrap()
         );
 
-        let addr = Address::from_str("bcrt1q2nfxmhd4n3c8834pj72xagvyr9gl57n5r94fsl")
+        let addr = Address::from_str("blrt1qk6d7rz5e3ur7u7ma36sfqe6k4y90863h7vs0aj")
             .unwrap()
             .assume_checked();
         let json = serde_json::to_value(&addr).unwrap();
         assert_eq!(
             json,
-            serde_json::Value::String("bcrt1q2nfxmhd4n3c8834pj72xagvyr9gl57n5r94fsl".to_owned())
+            serde_json::Value::String("blrt1qk6d7rz5e3ur7u7ma36sfqe6k4y90863h7vs0aj".to_owned())
         );
         let into: Address = serde_json::from_value::<Address<_>>(json).unwrap().assume_checked();
         assert_eq!(addr.to_string(), into.to_string());
         assert_eq!(
             into.script_pubkey(),
-            ScriptBuf::from_hex("001454d26dddb59c7073c6a197946ea1841951fa7a74").unwrap()
+            ScriptBuf::from_hex("0014b69be18a998f07ee7b7d8ea0906756a90af3ea37").unwrap()
         );
     }
 
     #[test]
     fn test_qr_string() {
         for el in
-            ["B6721rwWhbAK35A64Nra9mrpakimnsr8Jg", "bEJd6m9KbsMvvscqEhuKFJDvNqUJCEMz2J"].iter()
+            ["B6721rwWhbAK35A64Nra9mrpakimnsr8Jg", "bbkKKk2GT6wB5Qmpgtdd3gCnnsykXfD8Qu"].iter()
         {
             let addr =
                 Address::from_str(el).unwrap().require_network(Network::Bitcoin).expect("mainnet");
@@ -1388,12 +1388,12 @@ mod tests {
     #[test]
     fn test_matches_script_pubkey() {
         let addresses = [
-            "1QJVDzdqb1VpbDK7uDeyVXy9mR27CJiyhY",
-            "1J4LVanjHMu3JkXbVrahNuQCTGCRRgfWWx",
-            "33iFwdLuRpW1uK1RTRqsoi8rR4NpDzk66k",
-            "3QBRmWNqqBGme9er7fMkGqtZtp4gjMFxhE",
+            "BHbXiw6Zvezk7pYYwbKyPrgprFkHLggcn1",
+            "B4VsKWxKdXYsRiwavyNXGgWmqs2n8F7jSM",
+            "bbkKKk2GT6wB5Qmpgtdd3gCnnsykXfD8Qu",
+            "bWJbbsS2rSdf6LqWMxpr2AUamXzgfpB6S4",
             "bc1zw508d6qejxtdg4y5r3zarvaryvaxxpcs",
-            "bc1qvzvkjn4q3nszqxrv3nraga2r822xjty3ykvkuw",
+            "blk1qf5w5dpa5mx5mwhghd5gf5qmy6d3q6g36d4sf5p",
             "bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr",
             "bc1pgllnmtxs0g058qz7c6qgaqq4qknwrqj9z7rqn9e2dzhmcfmhlu4sfadf5e",
         ];
