@@ -12,15 +12,18 @@ use core::str::FromStr;
 use hashes::{hash160, Hash};
 use hex::FromHex;
 use internals::write_err;
-#[cfg(feature = "rand-std")]
-pub use secp256k1::rand;
-pub use secp256k1::{self, constants, Keypair, Parity, Secp256k1, Verification, XOnlyPublicKey};
 
 use crate::crypto::ecdsa;
 use crate::network::Network;
 use crate::prelude::*;
 use crate::taproot::{TapNodeHash, TapTweakHash};
 use crate::{base58, io};
+
+#[rustfmt::skip]                // Keep public re-exports separate.
+pub use secp256k1::{self, constants, Keypair, Parity, Secp256k1, Verification, XOnlyPublicKey};
+
+#[cfg(feature = "rand-std")]
+pub use secp256k1::rand;
 
 /// A Bitcoin ECDSA public key
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -507,17 +510,7 @@ impl fmt::Display for TweakedPublicKey {
 }
 
 /// Untweaked BIP-340 key pair
-#[deprecated(since = "0.31.0", note = "use UntweakedKeypair instead")]
-#[allow(deprecated)]
-pub type UntweakedKeyPair = UntweakedKeypair;
-
-/// Untweaked BIP-340 key pair
 pub type UntweakedKeypair = Keypair;
-
-/// Tweaked BIP-340 key pair
-#[deprecated(since = "0.31.0", note = "use TweakedKeypair instead")]
-#[allow(deprecated)]
-pub type TweakedKeyPair = TweakedKeypair;
 
 /// Tweaked BIP-340 key pair
 ///

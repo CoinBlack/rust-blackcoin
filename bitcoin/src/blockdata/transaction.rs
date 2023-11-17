@@ -23,8 +23,6 @@ use crate::blockdata::locktime::absolute::{self, Height, Time};
 use crate::blockdata::locktime::relative;
 use crate::blockdata::script::{Script, ScriptBuf};
 use crate::blockdata::witness::Witness;
-#[cfg(feature = "bitcoinconsensus")]
-pub use crate::consensus::validation::TxVerifyError;
 use crate::consensus::{encode, Decodable, Encodable};
 use crate::hash_types::{Txid, Wtxid};
 use crate::internal_macros::impl_consensus_encoding;
@@ -35,6 +33,11 @@ use crate::script::Push;
 use crate::sighash::{EcdsaSighashType, TapSighashType};
 use crate::string::FromHexStr;
 use crate::{io, Amount, VarInt};
+
+#[rustfmt::skip]                // Keep public re-exports separate.
+#[cfg(feature = "bitcoinconsensus")]
+#[doc(inline)]
+pub use crate::consensus::validation::TxVerifyError;
 
 /// The marker MUST be a 1-byte zero value: 0x00. (BIP-141)
 const SEGWIT_MARKER: u8 = 0x00;
@@ -328,12 +331,6 @@ impl Sequence {
     const LOCK_TIME_DISABLE_FLAG_MASK: u32 = 0x80000000;
     /// BIP-68 relative lock time type flag mask.
     const LOCK_TYPE_MASK: u32 = 0x00400000;
-
-    /// The maximum allowable sequence number.
-    ///
-    /// This is provided for consistency with Rust 1.41.1, newer code should use [`Sequence::MAX`].
-    #[deprecated(since = "0.31.0", note = "Use Self::MAX instead")]
-    pub const fn max_value() -> Self { Self::MAX }
 
     /// Returns `true` if the sequence number enables absolute lock-time ([`Transaction::lock_time`]).
     #[inline]
@@ -796,10 +793,6 @@ impl Transaction {
         // No overflow because it's computed from data in memory
         self.weight().to_vbytes_ceil() as usize
     }
-
-    /// Returns the size of this transaction excluding the witness data.
-    #[deprecated(since = "0.31.0", note = "Use Transaction::base_size() instead")]
-    pub fn strippedsize(&self) -> usize { self.base_size() }
 
     /// Checks if this is a coinbase transaction.
     ///
@@ -1350,6 +1343,26 @@ impl InputWeightPrediction {
     /// [signature grinding]: https://bitcoin.stackexchange.com/questions/111660/what-is-signature-grinding
     pub const P2WPKH_MAX: Self = InputWeightPrediction::from_slice(0, &[73, 33]);
 
+    /// Input weight prediction corresponding to spending of a P2PKH output with the largest possible
+    /// DER-encoded signature, and a compressed public key.
+    ///
+    /// If the input in your transaction uses P2PKH with a compressed key, you can use this instead of
+    /// [`InputWeightPrediction::new`].
+    ///
+    /// This is useful when you **do not** use [signature grinding] and want to ensure you are not
+    /// under-paying. See [`ground_p2pkh_compressed`](Self::ground_p2pkh_compressed) if you do use
+    /// signature grinding.
+    ///
+    /// [signature grinding]: https://bitcoin.stackexchange.com/questions/111660/what-is-signature-grinding
+    pub const P2PKH_COMPRESSED_MAX: Self = InputWeightPrediction::from_slice(107, &[]);
+
+    /// Input weight prediction corresponding to spending of a P2PKH output with the largest possible
+    /// DER-encoded signature, and an uncompressed public key.
+    ///
+    /// If the input in your transaction uses P2PKH with an uncompressed key, you can use this instead of
+    /// [`InputWeightPrediction::new`].
+    pub const P2PKH_UNCOMPRESSED_MAX: Self = InputWeightPrediction::from_slice(139, &[]);
+
     /// Input weight prediction corresponding to spending of taproot output using the key and
     /// default sighash.
     ///
@@ -1382,6 +1395,27 @@ impl InputWeightPrediction {
         // Written to trigger const/debug panic for unreasonably high values.
         let der_signature_size = 10 + (62 - bytes_to_grind);
         InputWeightPrediction::from_slice(0, &[der_signature_size, 33])
+    }
+
+    /// Input weight prediction corresponding to spending of a P2PKH output using [signature
+    /// grinding], and a compressed public key.
+    ///
+    /// If the input in your transaction uses compressed P2PKH and you use signature grinding you
+    /// can use this instead of [`InputWeightPrediction::new`]. See
+    /// [`P2PKH_COMPRESSED_MAX`](Self::P2PKH_COMPRESSED_MAX) if you don't use signature grinding.
+    ///
+    /// Note: `bytes_to_grind` is usually `1` because of exponential cost of higher values.
+    ///
+    /// # Panics
+    ///
+    /// The funcion panics in const context and debug builds if `bytes_to_grind` is higher than 62.
+    ///
+    /// [signature grinding]: https://bitcoin.stackexchange.com/questions/111660/what-is-signature-grinding
+    pub const fn ground_p2pkh_compressed(bytes_to_grind: usize) -> Self {
+        // Written to trigger const/debug panic for unreasonably high values.
+        let der_signature_size = 10 + (62 - bytes_to_grind);
+
+        InputWeightPrediction::from_slice(2 + 33 + der_signature_size, &[])
     }
 
     /// Computes the prediction for a single input.

@@ -149,25 +149,7 @@ impl Script {
     /// Computes the P2WSH output corresponding to this witnessScript (aka the "witness redeem
     /// script").
     #[inline]
-    #[deprecated(since = "0.31.0", note = "use to_p2wsh instead")]
-    pub fn to_v0_p2wsh(&self) -> ScriptBuf { self.to_p2wsh() }
-
-    /// Computes the P2WSH output corresponding to this witnessScript (aka the "witness redeem
-    /// script").
-    #[inline]
     pub fn to_p2wsh(&self) -> ScriptBuf { ScriptBuf::new_p2wsh(&self.wscript_hash()) }
-
-    /// Computes P2TR output with a given internal key and a single script spending path equal to
-    /// the current script, assuming that the script is a Tapscript.
-    #[inline]
-    #[deprecated(since = "0.31.0", note = "use to_p2tr instead")]
-    pub fn to_v1_p2tr<C: Verification>(
-        &self,
-        secp: &Secp256k1<C>,
-        internal_key: UntweakedPublicKey,
-    ) -> ScriptBuf {
-        self.to_p2tr(secp, internal_key)
-    }
 
     /// Computes P2TR output with a given internal key and a single script spending path equal to
     /// the current script, assuming that the script is a Tapscript.
@@ -238,7 +220,7 @@ impl Script {
     ///
     /// This may return `None` even when [`is_p2pk()`](Self::is_p2pk) returns true.
     /// This happens when the public key is invalid (e.g. the point not being on the curve).
-    /// It also implies the script is unspendable.
+    /// In this situation the script is unspendable.
     #[inline]
     pub fn p2pk_public_key(&self) -> Option<PublicKey> {
         PublicKey::from_slice(self.p2pk_pubkey_bytes()?).ok()
@@ -331,21 +313,11 @@ impl Script {
 
     /// Checks whether a script pubkey is a P2WSH output.
     #[inline]
-    #[deprecated(since = "0.31.0", note = "use is_p2wsh instead")]
-    pub fn is_v0_p2wsh(&self) -> bool { self.is_p2wsh() }
-
-    /// Checks whether a script pubkey is a P2WSH output.
-    #[inline]
     pub fn is_p2wsh(&self) -> bool {
         self.0.len() == 34
             && self.witness_version() == Some(WitnessVersion::V0)
             && self.0[1] == OP_PUSHBYTES_32.to_u8()
     }
-
-    /// Checks whether a script pubkey is a P2WPKH output.
-    #[inline]
-    #[deprecated(since = "0.31.0", note = "use is_p2wpkh instead")]
-    pub fn is_v0_p2wpkh(&self) -> bool { self.is_p2wpkh() }
 
     /// Checks whether a script pubkey is a P2WPKH output.
     #[inline]
@@ -362,11 +334,6 @@ impl Script {
             None
         }
     }
-
-    /// Checks whether a script pubkey is a P2TR output.
-    #[inline]
-    #[deprecated(since = "0.31.0", note = "use is_p2tr instead")]
-    pub fn is_v1_p2tr(&self) -> bool { self.is_p2tr() }
 
     /// Checks whether a script pubkey is a P2TR output.
     #[inline]
@@ -554,12 +521,12 @@ impl Script {
         InstructionIndices::from_instructions(self.instructions_minimal())
     }
 
-    /// Writes the assembly decoding of the script to the formatter.
+    /// Writes the human-readable assembly representation of the script to the formatter.
     pub fn fmt_asm(&self, f: &mut dyn fmt::Write) -> fmt::Result {
         bytes_to_asm_fmt(self.as_ref(), f)
     }
 
-    /// Returns the assembly decoding of the script.
+    /// Returns the human-readable assembly representation of the script.
     pub fn to_asm_string(&self) -> String {
         let mut buf = String::new();
         self.fmt_asm(&mut buf).unwrap();
@@ -570,7 +537,7 @@ impl Script {
     ///
     /// This is a more convenient and performant way to write `format!("{:x}", script)`.
     /// For better performance you should generally prefer displaying the script but if `String` is
-    /// required (this is common in tests) this method is can be used.
+    /// required (this is common in tests) this method can be used.
     pub fn to_hex_string(&self) -> String { self.as_bytes().to_lower_hex_string() }
 
     /// Returns the first opcode of the script (if there is any).

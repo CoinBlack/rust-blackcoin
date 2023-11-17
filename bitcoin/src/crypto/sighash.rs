@@ -15,6 +15,7 @@ use core::borrow::{Borrow, BorrowMut};
 use core::{fmt, str};
 
 use hashes::{hash_newtype, sha256, sha256d, sha256t_hash_newtype, Hash};
+use internals::write_err;
 
 use crate::blockdata::witness::Witness;
 use crate::consensus::{encode, Encodable};
@@ -223,15 +224,15 @@ pub enum Error {
 
     /// There are mismatches in the number of prevouts provided compared to the number of inputs in
     /// the transaction.
-    PrevoutsSize,
+    PrevoutsSize(PrevoutsSizeError),
 
     /// Requested a prevout index which is greater than the number of prevouts provided or a
     /// [`Prevouts::One`] with different index.
-    PrevoutIndex,
+    PrevoutsIndex(PrevoutsIndexError),
 
     /// A single prevout has been provided but all prevouts are needed unless using
     /// `SIGHASH_ANYONECANPAY`.
-    PrevoutKind,
+    PrevoutsKind(PrevoutsKindError),
 
     /// Annex must be at least one byte long and the first bytes must be `0x50`.
     WrongAnnex,
@@ -251,9 +252,9 @@ impl fmt::Display for Error {
             Io(error_kind) => write!(f, "writer errored: {:?}", error_kind),
             IndexOutOfInputsBounds { index, inputs_size } => write!(f, "requested index ({}) is greater or equal than the number of transaction inputs ({})", index, inputs_size),
             SingleWithoutCorrespondingOutput { index, outputs_size } => write!(f, "SIGHASH_SINGLE for input ({}) haven't a corresponding output (#outputs:{})", index, outputs_size),
-            PrevoutsSize => write!(f, "number of supplied prevouts differs from the number of inputs in transaction"),
-            PrevoutIndex => write!(f, "the index requested is greater than available prevouts or different from the provided [Provided::Anyone] index"),
-            PrevoutKind => write!(f, "a single prevout has been provided but all prevouts are needed without `ANYONECANPAY`"),
+            PrevoutsSize(ref e) => write_err!(f, "prevouts size"; e),
+            PrevoutsIndex(ref e) => write_err!(f, "prevouts index"; e),
+            PrevoutsKind(ref e) => write_err!(f, "prevouts kind"; e),
             WrongAnnex => write!(f, "annex must be at least one byte long and the first bytes must be `0x50`"),
             InvalidSighashType(hash_ty) => write!(f, "Invalid taproot signature hash type : {} ", hash_ty),
             NotP2wpkhScript => write!(f, "script is not a script pubkey for a p2wpkh output"),
@@ -267,12 +268,12 @@ impl std::error::Error for Error {
         use Error::*;
 
         match *self {
+            PrevoutsSize(ref e) => Some(e),
+            PrevoutsIndex(ref e) => Some(e),
+            PrevoutsKind(ref e) => Some(e),
             Io(_)
             | IndexOutOfInputsBounds { .. }
             | SingleWithoutCorrespondingOutput { .. }
-            | PrevoutsSize
-            | PrevoutIndex
-            | PrevoutKind
             | WrongAnnex
             | InvalidSighashType(_)
             | NotP2wpkhScript => None,
@@ -284,36 +285,114 @@ impl From<io::Error> for Error {
     fn from(e: io::Error) -> Self { Error::Io(e.kind()) }
 }
 
+impl From<PrevoutsSizeError> for Error {
+    fn from(e: PrevoutsSizeError) -> Self { Self::PrevoutsSize(e) }
+}
+
+impl From<PrevoutsKindError> for Error {
+    fn from(e: PrevoutsKindError) -> Self { Self::PrevoutsKind(e) }
+}
+
+impl From<PrevoutsIndexError> for Error {
+    fn from(e: PrevoutsIndexError) -> Self { Self::PrevoutsIndex(e) }
+}
+
 impl<'u, T> Prevouts<'u, T>
 where
     T: Borrow<TxOut>,
 {
-    fn check_all(&self, tx: &Transaction) -> Result<(), Error> {
+    fn check_all(&self, tx: &Transaction) -> Result<(), PrevoutsSizeError> {
         if let Prevouts::All(prevouts) = self {
             if prevouts.len() != tx.input.len() {
-                return Err(Error::PrevoutsSize);
+                return Err(PrevoutsSizeError);
             }
         }
         Ok(())
     }
 
-    fn get_all(&self) -> Result<&[T], Error> {
+    fn get_all(&self) -> Result<&[T], PrevoutsKindError> {
         match self {
             Prevouts::All(prevouts) => Ok(*prevouts),
-            _ => Err(Error::PrevoutKind),
+            _ => Err(PrevoutsKindError),
         }
     }
 
-    fn get(&self, input_index: usize) -> Result<&TxOut, Error> {
+    fn get(&self, input_index: usize) -> Result<&TxOut, PrevoutsIndexError> {
         match self {
             Prevouts::One(index, prevout) =>
                 if input_index == *index {
                     Ok(prevout.borrow())
                 } else {
-                    Err(Error::PrevoutIndex)
+                    Err(PrevoutsIndexError::InvalidOneIndex)
                 },
-            Prevouts::All(prevouts) =>
-                prevouts.get(input_index).map(|x| x.borrow()).ok_or(Error::PrevoutIndex),
+            Prevouts::All(prevouts) => prevouts
+                .get(input_index)
+                .map(|x| x.borrow())
+                .ok_or(PrevoutsIndexError::InvalidAllIndex),
+        }
+    }
+}
+
+/// The number of supplied prevouts differs from the number of inputs in the transaction.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct PrevoutsSizeError;
+
+impl fmt::Display for PrevoutsSizeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "number of supplied prevouts differs from the number of inputs in transaction")
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for PrevoutsSizeError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> { None }
+}
+
+/// A single prevout was been provided but all prevouts are needed without `ANYONECANPAY`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub struct PrevoutsKindError;
+
+impl fmt::Display for PrevoutsKindError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "single prevout provided but all prevouts are needed without `ANYONECANPAY`")
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for PrevoutsKindError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> { None }
+}
+
+/// [`Prevouts`] index related errors.
+#[derive(Debug, Clone, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum PrevoutsIndexError {
+    /// Invalid index when accessing a [`Prevouts::One`] kind.
+    InvalidOneIndex,
+    /// Invalid index when accessing a [`Prevouts::All`] kind.
+    InvalidAllIndex,
+}
+
+impl fmt::Display for PrevoutsIndexError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use PrevoutsIndexError::*;
+
+        match *self {
+            InvalidOneIndex => write!(f, "invalid index when accessing a Prevouts::One kind"),
+            InvalidAllIndex => write!(f, "invalid index when accessing a Prevouts::All kind"),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for PrevoutsIndexError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        use PrevoutsIndexError::*;
+
+        match *self {
+            InvalidOneIndex | InvalidAllIndex => None,
         }
     }
 }
@@ -777,20 +856,6 @@ impl<R: Borrow<Transaction>> SighashCache<R> {
 
     /// Encodes the BIP143 signing data for any flag type into a given object implementing a
     /// [`std::io::Write`] trait.
-    #[deprecated(since = "0.31.0", note = "use segwit_v0_encode_signing_data_to instead")]
-    pub fn segwit_encode_signing_data_to<Write: io::Write>(
-        &mut self,
-        writer: Write,
-        input_index: usize,
-        script_code: &Script,
-        value: Amount,
-        sighash_type: EcdsaSighashType,
-    ) -> Result<(), Error> {
-        self.segwit_v0_encode_signing_data_to(writer, input_index, script_code, value, sighash_type)
-    }
-
-    /// Encodes the BIP143 signing data for any flag type into a given object implementing a
-    /// [`std::io::Write`] trait.
     ///
     /// `script_code` is dependent on the type of the spend transaction. For p2wpkh use
     /// [`Script::p2wpkh_script_code`], for p2wsh just pass in the witness script. (Also see
@@ -852,26 +917,6 @@ impl<R: Borrow<Transaction>> SighashCache<R> {
         self.tx.borrow().lock_time.consensus_encode(&mut writer)?;
         sighash_type.to_u32().consensus_encode(&mut writer)?;
         Ok(())
-    }
-
-    /// Computes the BIP143 sighash for any flag type.
-    #[deprecated(since = "0.31.0", note = "use (p2wpkh|p2wsh)_signature_hash instead")]
-    pub fn segwit_signature_hash(
-        &mut self,
-        input_index: usize,
-        script_code: &Script,
-        value: Amount,
-        sighash_type: EcdsaSighashType,
-    ) -> Result<SegwitV0Sighash, Error> {
-        let mut enc = SegwitV0Sighash::engine();
-        self.segwit_v0_encode_signing_data_to(
-            &mut enc,
-            input_index,
-            script_code,
-            value,
-            sighash_type,
-        )?;
-        Ok(SegwitV0Sighash::from_engine(enc))
     }
 
     /// Computes the BIP143 sighash to spend a p2wpkh transaction for any flag type.
@@ -1156,7 +1201,7 @@ impl<R: BorrowMut<Transaction>> SighashCache<R> {
     /// let mut sig_hasher = SighashCache::new(&mut tx_to_sign);
     /// for inp in 0..input_count {
     ///     let prevout_script = Script::new();
-    ///     let _sighash = sig_hasher.segwit_signature_hash(inp, prevout_script, Amount::ONE_SAT, EcdsaSighashType::All);
+    ///     let _sighash = sig_hasher.p2wpkh_signature_hash(inp, prevout_script, Amount::ONE_SAT, EcdsaSighashType::All);
     ///     // ... sign the sighash
     ///     sig_hasher.witness_mut(inp).unwrap().push(&Vec::new());
     /// }
@@ -1484,23 +1529,23 @@ mod tests {
         let empty_prevouts : Prevouts<TxOut> = Prevouts::All(&empty_vec);
         assert_eq!(
             c.taproot_signature_hash(0, &empty_prevouts, None, None, TapSighashType::All),
-            Err(Error::PrevoutsSize)
+            Err(Error::PrevoutsSize(PrevoutsSizeError))
         );
         let two = vec![TxOut::NULL, TxOut::NULL];
         let too_many_prevouts = Prevouts::All(&two);
         assert_eq!(
             c.taproot_signature_hash(0, &too_many_prevouts, None, None, TapSighashType::All),
-            Err(Error::PrevoutsSize)
+            Err(Error::PrevoutsSize(PrevoutsSizeError))
         );
         let tx_out = TxOut::NULL;
         let prevout = Prevouts::One(1, &tx_out);
         assert_eq!(
             c.taproot_signature_hash(0, &prevout, None, None, TapSighashType::All),
-            Err(Error::PrevoutKind)
+            Err(Error::PrevoutsKind(PrevoutsKindError))
         );
         assert_eq!(
             c.taproot_signature_hash(0, &prevout, None, None, TapSighashType::AllPlusAnyoneCanPay),
-            Err(Error::PrevoutIndex)
+            Err(Error::PrevoutsIndex(PrevoutsIndexError::InvalidOneIndex))
         );
         assert_eq!(
             c.taproot_signature_hash(10, &prevout, None, None, TapSighashType::AllPlusAnyoneCanPay),

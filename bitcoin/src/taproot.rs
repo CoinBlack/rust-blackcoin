@@ -16,10 +16,13 @@ use secp256k1::{self, Scalar, Secp256k1};
 
 use crate::consensus::Encodable;
 use crate::crypto::key::{TapTweak, TweakedPublicKey, UntweakedPublicKey, XOnlyPublicKey};
-// Re-export these so downstream only has to use one `taproot` module.
-pub use crate::crypto::taproot::{SigFromSliceError, Signature};
 use crate::prelude::*;
 use crate::{io, Script, ScriptBuf};
+
+// Re-export these so downstream only has to use one `taproot` module.
+#[rustfmt::skip]
+#[doc(inline)]
+pub use crate::crypto::taproot::{SigFromSliceError, Signature};
 
 // Taproot test vectors from BIP-341 state the hashes without any reversing
 sha256t_hash_newtype! {
@@ -290,10 +293,6 @@ impl TaprootSpendInfo {
         }
         info
     }
-
-    /// Returns the internal script map.
-    #[deprecated(since = "0.31.0", note = "use Self::script_map instead")]
-    pub fn as_script_map(&self) -> &ScriptMerkleProofMap { self.script_map() }
 
     /// Constructs a [`ControlBlock`] for particular script with the given version.
     ///

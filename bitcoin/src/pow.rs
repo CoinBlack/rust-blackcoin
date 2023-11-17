@@ -19,6 +19,7 @@ use crate::hash_types::BlockHash;
 use crate::io::{self, Read, Write};
 use crate::prelude::String;
 use crate::string::FromHexStr;
+use crate::Network;
 
 /// Implement traits and methods shared by `Target` and `Work`.
 macro_rules! do_impl {
@@ -137,12 +138,6 @@ impl Target {
     // https://github.com/bitcoin/bitcoin/blob/8105bce5b384c72cf08b25b7c5343622754e7337/src/kernel/chainparams.cpp#L348
     pub const MAX_ATTAINABLE_SIGNET: Self = Target(U256(0x0377_ae00 << 80, 0));
 
-    /// The maximum possible target (see [`Target::MAX`]).
-    ///
-    /// This is provided for consistency with Rust 1.41.1, newer code should use [`Target::MAX`].
-    #[deprecated(since = "0.31.0", note = "Use Self::MAX instead")]
-    pub const fn max_value() -> Self { Target::MAX }
-
     /// Computes the [`Target`] value from a compact representation.
     ///
     /// ref: <https://developer.bitcoin.org/reference/block_chain.html#target-nbits>
@@ -229,8 +224,14 @@ impl Target {
     /// [max]: Target::max
     /// [target]: crate::blockdata::block::Header::target
     #[cfg_attr(all(test, mutate), mutate)]
-    pub fn difficulty(&self) -> u128 {
-        let d = Target::MAX.0 / self.0;
+    pub fn difficulty(&self, network: Network) -> u128 {
+        let max = match network {
+            Network::Bitcoin => Target::MAX_ATTAINABLE_MAINNET,
+            Network::Testnet => Target::MAX_ATTAINABLE_TESTNET,
+            Network::Signet => Target::MAX_ATTAINABLE_SIGNET,
+            Network::Regtest => Target::MAX_ATTAINABLE_REGTEST,
+        };
+        let d = max.0 / self.0;
         d.saturating_to_u128()
     }
 
