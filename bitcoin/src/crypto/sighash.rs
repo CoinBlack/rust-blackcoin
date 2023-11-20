@@ -1024,6 +1024,7 @@ impl<R: Borrow<Transaction>> SighashCache<R> {
             // Build tx to sign
             let mut tx = Transaction {
                 version: self_.version,
+                time: self_.time,
                 lock_time: self_.lock_time,
                 input: vec![],
                 output: vec![],
@@ -1331,6 +1332,7 @@ mod tests {
         // We need a tx with more inputs than outputs.
         let tx = Transaction {
             version: transaction::Version::ONE,
+            time: 0,
             lock_time: absolute::LockTime::ZERO,
             input: vec![TxIn::default(), TxIn::default()],
             output: vec![TxOut::NULL],
@@ -1518,6 +1520,7 @@ mod tests {
     fn test_sighash_errors() {
         let dumb_tx = Transaction {
             version: transaction::Version::TWO,
+            time: 0,
             lock_time: absolute::LockTime::ZERO,
             input: vec![TxIn::default()],
             output: vec![],

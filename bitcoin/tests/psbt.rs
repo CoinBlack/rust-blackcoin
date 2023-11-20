@@ -161,6 +161,7 @@ fn create_transaction() -> Transaction {
 
     Transaction {
         version: transaction::Version::TWO,
+        time: 0,
         lock_time: absolute::LockTime::ZERO,
         input: vec![
             TxIn {

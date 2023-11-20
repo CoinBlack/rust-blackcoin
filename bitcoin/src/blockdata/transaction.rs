@@ -628,6 +628,8 @@ fn size_from_script_pubkey(script_pubkey: &Script) -> usize {
 pub struct Transaction {
     /// The protocol version, is currently expected to be 1 or 2 (BIP 68).
     pub version: Version,
+    /// Transaction timestamp.
+    pub time: u32,
     /// Block height or timestamp. Transaction cannot be included in a block until this height/time.
     ///
     /// ### Relevant BIPs
@@ -648,6 +650,7 @@ impl cmp::Ord for Transaction {
     fn cmp(&self, other: &Self) -> cmp::Ordering {
         self.version
             .cmp(&other.version)
+            .then(self.time.cmp(&other.time))
             .then(self.lock_time.to_consensus_u32().cmp(&other.lock_time.to_consensus_u32()))
             .then(self.input.cmp(&other.input))
             .then(self.output.cmp(&other.output))
@@ -666,6 +669,7 @@ impl Transaction {
     pub fn ntxid(&self) -> sha256d::Hash {
         let cloned_tx = Transaction {
             version: self.version,
+            time: self.time,
             lock_time: self.lock_time,
             input: self
                 .input
@@ -689,6 +693,7 @@ impl Transaction {
     pub fn txid(&self) -> Txid {
         let mut enc = Txid::engine();
         self.version.consensus_encode(&mut enc).expect("engines don't error");
+        self.time.consensus_encode(&mut enc).expect("engines don't error");
         self.input.consensus_encode(&mut enc).expect("engines don't error");
         self.output.consensus_encode(&mut enc).expect("engines don't error");
         self.lock_time.consensus_encode(&mut enc).expect("engines don't error");
@@ -737,6 +742,10 @@ impl Transaction {
     pub fn base_size(&self) -> usize {
         let mut size: usize = 4; // Serialized length of a u32 for the version number.
 
+        if self.version != Version::TWO {
+            size += 4; // u32 for timestamp
+        }
+
         size += VarInt::from(self.input.len()).size();
         size += self.input.iter().map(|input| input.base_size()).sum::<usize>();
 
@@ -753,6 +762,10 @@ impl Transaction {
     #[inline]
     pub fn total_size(&self) -> usize {
         let mut size: usize = 4; // Serialized length of a u32 for the version number.
+
+        if self.version != Version::TWO {
+            size += 4; // u32 for timestamp
+        }
 
         if self.use_segwit_serialization() {
             size += 2; // 1 byte for the marker and 1 for the flag.
@@ -1082,7 +1095,10 @@ impl Decodable for Sequence {
 impl Encodable for Transaction {
     fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
         let mut len = 0;
-        len += self.version.consensus_encode(w)?;
+        if self.version != Version::TWO {
+            len += self.version.consensus_encode(w)?;
+        }
+        len += self.time.consensus_encode(w)?;
 
         // Legacy transaction serialization format only includes inputs and outputs.
         if !self.use_segwit_serialization() {
@@ -1108,6 +1124,7 @@ impl Decodable for Transaction {
         r: &mut R,
     ) -> Result<Self, encode::Error> {
         let version = Version::consensus_decode_from_finite_reader(r)?;
+        let time = if version != Version::TWO { <u32>::consensus_decode_from_finite_reader(r)? } else { 0 };
         let input = Vec::<TxIn>::consensus_decode_from_finite_reader(r)?;
         // segwit
         if input.is_empty() {
@@ -1125,6 +1142,7 @@ impl Decodable for Transaction {
                     } else {
                         Ok(Transaction {
                             version,
+                            time,
                             input,
                             output,
                             lock_time: Decodable::consensus_decode_from_finite_reader(r)?,
@@ -1138,6 +1156,7 @@ impl Decodable for Transaction {
         } else {
             Ok(Transaction {
                 version,
+                time,
                 input,
                 output: Decodable::consensus_decode_from_finite_reader(r)?,
                 lock_time: Decodable::consensus_decode_from_finite_reader(r)?,
@@ -2008,6 +2027,7 @@ mod tests {
 
         let empty_transaction_weight = Transaction {
             version: Version::TWO,
+            time: 0,
             lock_time: absolute::LockTime::ZERO,
             input: vec![],
             output: vec![],

@@ -96,6 +96,7 @@ impl Psbt {
                                     // properly.
                                     tx = Some(Transaction {
                                         version: Decodable::consensus_decode(&mut decoder)?,
+                                        time: Decodable::consensus_decode(&mut decoder)?,
                                         input: Decodable::consensus_decode(&mut decoder)?,
                                         output: Decodable::consensus_decode(&mut decoder)?,
                                         lock_time: Decodable::consensus_decode(&mut decoder)?,
