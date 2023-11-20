@@ -215,9 +215,11 @@ pub struct Block {
     pub header: Header,
     /// List of transactions contained in the block
     pub txdata: Vec<Transaction>,
+    /// The block signature
+    pub signature: Vec<u8>,
 }
 
-impl_consensus_encoding!(Block, header, txdata);
+impl_consensus_encoding!(Block, header, txdata, signature);
 
 impl Block {
     /// Returns the block hash.
@@ -319,6 +321,7 @@ impl Block {
 
         size += VarInt::from(self.txdata.len()).size();
         size += self.txdata.iter().map(|tx| tx.base_size()).sum::<usize>();
+        size += VarInt::from(self.signature.len()).size();
 
         size
     }
@@ -332,6 +335,7 @@ impl Block {
 
         size += VarInt::from(self.txdata.len()).size();
         size += self.txdata.iter().map(|tx| tx.total_size()).sum::<usize>();
+        size += VarInt::from(self.signature.len()).size();
 
         size
     }

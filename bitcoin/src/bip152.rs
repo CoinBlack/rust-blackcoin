@@ -407,6 +407,7 @@ mod test {
                 nonce: 4,
             },
             txdata: vec![dummy_tx(&[2]), dummy_tx(&[3]), dummy_tx(&[4])],
+            signature: vec![],
         }
     }
 
