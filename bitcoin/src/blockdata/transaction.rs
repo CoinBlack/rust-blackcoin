@@ -628,6 +628,8 @@ fn size_from_script_pubkey(script_pubkey: &Script) -> usize {
 pub struct Transaction {
     /// The protocol version, is currently expected to be 1 or 2 (BIP 68).
     pub version: Version,
+    /// Transaction timestamp.
+    pub time: u32,
     /// Block height or timestamp. Transaction cannot be included in a block until this height/time.
     ///
     /// ### Relevant BIPs
@@ -648,6 +650,7 @@ impl cmp::Ord for Transaction {
     fn cmp(&self, other: &Self) -> cmp::Ordering {
         self.version
             .cmp(&other.version)
+            .then(self.time.cmp(&other.time))
             .then(self.lock_time.to_consensus_u32().cmp(&other.lock_time.to_consensus_u32()))
             .then(self.input.cmp(&other.input))
             .then(self.output.cmp(&other.output))
@@ -666,6 +669,7 @@ impl Transaction {
     pub fn ntxid(&self) -> sha256d::Hash {
         let cloned_tx = Transaction {
             version: self.version,
+            time: self.time,
             lock_time: self.lock_time,
             input: self
                 .input
@@ -689,6 +693,7 @@ impl Transaction {
     pub fn txid(&self) -> Txid {
         let mut enc = Txid::engine();
         self.version.consensus_encode(&mut enc).expect("engines don't error");
+        self.time.consensus_encode(&mut enc).expect("engines don't error");
         self.input.consensus_encode(&mut enc).expect("engines don't error");
         self.output.consensus_encode(&mut enc).expect("engines don't error");
         self.lock_time.consensus_encode(&mut enc).expect("engines don't error");
@@ -737,6 +742,10 @@ impl Transaction {
     pub fn base_size(&self) -> usize {
         let mut size: usize = 4; // Serialized length of a u32 for the version number.
 
+        if self.version == Version::ONE {
+            size += 4; // u32 for timestamp
+        }
+
         size += VarInt::from(self.input.len()).size();
         size += self.input.iter().map(|input| input.base_size()).sum::<usize>();
 
@@ -753,6 +762,10 @@ impl Transaction {
     #[inline]
     pub fn total_size(&self) -> usize {
         let mut size: usize = 4; // Serialized length of a u32 for the version number.
+
+        if self.version == Version::ONE {
+            size += 4; // u32 for timestamp
+        }
 
         if self.use_segwit_serialization() {
             size += 2; // 1 byte for the marker and 1 for the flag.
@@ -1082,7 +1095,10 @@ impl Decodable for Sequence {
 impl Encodable for Transaction {
     fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
         let mut len = 0;
-        len += self.version.consensus_encode(w)?;
+        if self.version == Version::ONE {
+            len += self.version.consensus_encode(w)?;
+        }
+        len += self.time.consensus_encode(w)?;
 
         // Legacy transaction serialization format only includes inputs and outputs.
         if !self.use_segwit_serialization() {
@@ -1108,6 +1124,7 @@ impl Decodable for Transaction {
         r: &mut R,
     ) -> Result<Self, encode::Error> {
         let version = Version::consensus_decode_from_finite_reader(r)?;
+        let time = if version == Version::ONE { <u32>::consensus_decode_from_finite_reader(r)? } else { 0 };
         let input = Vec::<TxIn>::consensus_decode_from_finite_reader(r)?;
         // segwit
         if input.is_empty() {
@@ -1125,6 +1142,7 @@ impl Decodable for Transaction {
                     } else {
                         Ok(Transaction {
                             version,
+                            time,
                             input,
                             output,
                             lock_time: Decodable::consensus_decode_from_finite_reader(r)?,
@@ -1138,6 +1156,7 @@ impl Decodable for Transaction {
         } else {
             Ok(Transaction {
                 version,
+                time,
                 input,
                 output: Decodable::consensus_decode_from_finite_reader(r)?,
                 lock_time: Decodable::consensus_decode_from_finite_reader(r)?,
@@ -1475,7 +1494,8 @@ mod tests {
     use crate::consensus::encode::{deserialize, serialize};
     use crate::sighash::EcdsaSighashType;
 
-    const SOME_TX: &str = "0100000001a15d57094aa7a21a28cb20b59aab8fc7d1149a3bdbcddba9c622e4f5f6a99ece010000006c493046022100f93bb0e7d8db7bd46e40132d1f8242026e045f03a0efe71bbb8e3f475e970d790221009337cd7f1f929f00cc6ff01f03729b069a7c21b59b1736ddfee5db5946c5da8c0121033b9b137ee87d5a812d6f506efdd37f0affa7ffc310711c06c7f3e097c9447c52ffffffff0100e1f505000000001976a9140389035a9225b3839e2bbf32d826a1e222031fd888ac00000000";
+    // Blackcoin: non-segwit v1 transaction c630032792c86c5f76a1ff1cac60611fcd04d151de87e7260804676528e5db90
+    const SOME_TX: &str = "010000001c0d666501a381bf0282d770c0267a9901beef8f9cccf56857fb1faec4898de92f8d8502da000000006b483045022100cf2efb0252bd40d2e7c072be19e8ce2f78615ec6688c2b026f1bbfc37c64253502202c356fb9fd6b9736094667342c594e4c98eae1a2935e8ee1a7d32de93b8ebd890121033356d9b2f41ebfbbc9b9c43b58af5365b6bb821ff93867047f4c396c1a7f7276ffffffff02f6182300000000001976a914ca1e04745e8ca0c60d8c5881531d51bec470743f88ac6a9d1e25050000001976a914c0f212680244cdbd04507a9df77f1abee14d820388ac1c0d6665";
 
     #[test]
     fn encode_to_unsized_writer() {
@@ -1587,7 +1607,7 @@ mod tests {
 
         let genesis = constants::genesis_block(Network::Bitcoin);
         assert!(genesis.txdata[0].is_coinbase());
-        let tx_bytes = hex!("0100000001a15d57094aa7a21a28cb20b59aab8fc7d1149a3bdbcddba9c622e4f5f6a99ece010000006c493046022100f93bb0e7d8db7bd46e40132d1f8242026e045f03a0efe71bbb8e3f475e970d790221009337cd7f1f929f00cc6ff01f03729b069a7c21b59b1736ddfee5db5946c5da8c0121033b9b137ee87d5a812d6f506efdd37f0affa7ffc310711c06c7f3e097c9447c52ffffffff0100e1f505000000001976a9140389035a9225b3839e2bbf32d826a1e222031fd888ac00000000");
+        let tx_bytes = hex!("010000001c0d666501a381bf0282d770c0267a9901beef8f9cccf56857fb1faec4898de92f8d8502da000000006b483045022100cf2efb0252bd40d2e7c072be19e8ce2f78615ec6688c2b026f1bbfc37c64253502202c356fb9fd6b9736094667342c594e4c98eae1a2935e8ee1a7d32de93b8ebd890121033356d9b2f41ebfbbc9b9c43b58af5365b6bb821ff93867047f4c396c1a7f7276ffffffff02f6182300000000001976a914ca1e04745e8ca0c60d8c5881531d51bec470743f88ac6a9d1e25050000001976a914c0f212680244cdbd04507a9df77f1abee14d820388ac1c0d6665");
         let tx: Transaction = deserialize(&tx_bytes).unwrap();
         assert!(!tx.is_coinbase());
     }
@@ -1602,7 +1622,7 @@ mod tests {
 
     #[test]
     fn nonsegwit_transaction() {
-        let tx_bytes = hex!("0100000001a15d57094aa7a21a28cb20b59aab8fc7d1149a3bdbcddba9c622e4f5f6a99ece010000006c493046022100f93bb0e7d8db7bd46e40132d1f8242026e045f03a0efe71bbb8e3f475e970d790221009337cd7f1f929f00cc6ff01f03729b069a7c21b59b1736ddfee5db5946c5da8c0121033b9b137ee87d5a812d6f506efdd37f0affa7ffc310711c06c7f3e097c9447c52ffffffff0100e1f505000000001976a9140389035a9225b3839e2bbf32d826a1e222031fd888ac00000000");
+        let tx_bytes = hex!("010000001c0d666501a381bf0282d770c0267a9901beef8f9cccf56857fb1faec4898de92f8d8502da000000006b483045022100cf2efb0252bd40d2e7c072be19e8ce2f78615ec6688c2b026f1bbfc37c64253502202c356fb9fd6b9736094667342c594e4c98eae1a2935e8ee1a7d32de93b8ebd890121033356d9b2f41ebfbbc9b9c43b58af5365b6bb821ff93867047f4c396c1a7f7276ffffffff02f6182300000000001976a914ca1e04745e8ca0c60d8c5881531d51bec470743f88ac6a9d1e25050000001976a914c0f212680244cdbd04507a9df77f1abee14d820388ac1c0d6665");
         let tx: Result<Transaction, _> = deserialize(&tx_bytes);
         assert!(tx.is_ok());
         let realtx = tx.unwrap();
@@ -1614,19 +1634,19 @@ mod tests {
         // as little-endian 256-bit numbers rather than as data strings.
         assert_eq!(
             format!("{:x}", realtx.input[0].previous_output.txid),
-            "ce9ea9f6f5e422c6a9dbcddb3b9a14d1c78fab9ab520cb281aa2a74a09575da1".to_string()
+            "da02858d2fe98d89c4ae1ffb5768f5cc9c8fefbe01997a26c070d78202bf81a3".to_string()
         );
-        assert_eq!(realtx.input[0].previous_output.vout, 1);
-        assert_eq!(realtx.output.len(), 1);
+        assert_eq!(realtx.input[0].previous_output.vout, 0);
+        assert_eq!(realtx.output.len(), 2);
         assert_eq!(realtx.lock_time, absolute::LockTime::ZERO);
 
         assert_eq!(
             format!("{:x}", realtx.txid()),
-            "a6eab3c14ab5272a58a5ba91505ba1a4b6d7a3a9fcbd187b6cd99a7b6d548cb7".to_string()
+            "c630032792c86c5f76a1ff1cac60611fcd04d151de87e7260804676528e5db90".to_string()
         );
         assert_eq!(
             format!("{:x}", realtx.wtxid()),
-            "a6eab3c14ab5272a58a5ba91505ba1a4b6d7a3a9fcbd187b6cd99a7b6d548cb7".to_string()
+            "c630032792c86c5f76a1ff1cac60611fcd04d151de87e7260804676528e5db90".to_string()
         );
         assert_eq!(realtx.weight().to_wu() as usize, tx_bytes.len() * WITNESS_SCALE_FACTOR);
         assert_eq!(realtx.total_size(), tx_bytes.len());
@@ -1733,7 +1753,7 @@ mod tests {
 
     #[test]
     fn ntxid() {
-        let tx_bytes = hex!("0100000001a15d57094aa7a21a28cb20b59aab8fc7d1149a3bdbcddba9c622e4f5f6a99ece010000006c493046022100f93bb0e7d8db7bd46e40132d1f8242026e045f03a0efe71bbb8e3f475e970d790221009337cd7f1f929f00cc6ff01f03729b069a7c21b59b1736ddfee5db5946c5da8c0121033b9b137ee87d5a812d6f506efdd37f0affa7ffc310711c06c7f3e097c9447c52ffffffff0100e1f505000000001976a9140389035a9225b3839e2bbf32d826a1e222031fd888ac00000000");
+        let tx_bytes = hex!("010000001c0d666501a381bf0282d770c0267a9901beef8f9cccf56857fb1faec4898de92f8d8502da000000006b483045022100cf2efb0252bd40d2e7c072be19e8ce2f78615ec6688c2b026f1bbfc37c64253502202c356fb9fd6b9736094667342c594e4c98eae1a2935e8ee1a7d32de93b8ebd890121033356d9b2f41ebfbbc9b9c43b58af5365b6bb821ff93867047f4c396c1a7f7276ffffffff02f6182300000000001976a914ca1e04745e8ca0c60d8c5881531d51bec470743f88ac6a9d1e25050000001976a914c0f212680244cdbd04507a9df77f1abee14d820388ac1c0d6665");
         let mut tx: Transaction = deserialize(&tx_bytes).unwrap();
 
         let old_ntxid = tx.ntxid();
@@ -1818,7 +1838,7 @@ mod tests {
     #[test]
     #[cfg(feature = "serde")]
     fn txn_encode_decode() {
-        let tx_bytes = hex!("0100000001a15d57094aa7a21a28cb20b59aab8fc7d1149a3bdbcddba9c622e4f5f6a99ece010000006c493046022100f93bb0e7d8db7bd46e40132d1f8242026e045f03a0efe71bbb8e3f475e970d790221009337cd7f1f929f00cc6ff01f03729b069a7c21b59b1736ddfee5db5946c5da8c0121033b9b137ee87d5a812d6f506efdd37f0affa7ffc310711c06c7f3e097c9447c52ffffffff0100e1f505000000001976a9140389035a9225b3839e2bbf32d826a1e222031fd888ac00000000");
+        let tx_bytes = hex!("010000001c0d666501a381bf0282d770c0267a9901beef8f9cccf56857fb1faec4898de92f8d8502da000000006b483045022100cf2efb0252bd40d2e7c072be19e8ce2f78615ec6688c2b026f1bbfc37c64253502202c356fb9fd6b9736094667342c594e4c98eae1a2935e8ee1a7d32de93b8ebd890121033356d9b2f41ebfbbc9b9c43b58af5365b6bb821ff93867047f4c396c1a7f7276ffffffff02f6182300000000001976a914ca1e04745e8ca0c60d8c5881531d51bec470743f88ac6a9d1e25050000001976a914c0f212680244cdbd04507a9df77f1abee14d820388ac1c0d6665");
         let tx: Transaction = deserialize(&tx_bytes).unwrap();
         serde_round_trip!(tx);
     }
@@ -2008,6 +2028,7 @@ mod tests {
 
         let empty_transaction_weight = Transaction {
             version: Version::TWO,
+            time: 0,
             lock_time: absolute::LockTime::ZERO,
             input: vec![],
             output: vec![],
@@ -2191,7 +2212,7 @@ mod benches {
     use crate::consensus::{deserialize, Encodable};
     use crate::EmptyWrite;
 
-    const SOME_TX: &str = "0100000001a15d57094aa7a21a28cb20b59aab8fc7d1149a3bdbcddba9c622e4f5f6a99ece010000006c493046022100f93bb0e7d8db7bd46e40132d1f8242026e045f03a0efe71bbb8e3f475e970d790221009337cd7f1f929f00cc6ff01f03729b069a7c21b59b1736ddfee5db5946c5da8c0121033b9b137ee87d5a812d6f506efdd37f0affa7ffc310711c06c7f3e097c9447c52ffffffff0100e1f505000000001976a9140389035a9225b3839e2bbf32d826a1e222031fd888ac00000000";
+    const SOME_TX: &str = "010000001c0d666501a381bf0282d770c0267a9901beef8f9cccf56857fb1faec4898de92f8d8502da000000006b483045022100cf2efb0252bd40d2e7c072be19e8ce2f78615ec6688c2b026f1bbfc37c64253502202c356fb9fd6b9736094667342c594e4c98eae1a2935e8ee1a7d32de93b8ebd890121033356d9b2f41ebfbbc9b9c43b58af5365b6bb821ff93867047f4c396c1a7f7276ffffffff02f6182300000000001976a914ca1e04745e8ca0c60d8c5881531d51bec470743f88ac6a9d1e25050000001976a914c0f212680244cdbd04507a9df77f1abee14d820388ac1c0d6665";
 
     #[bench]
     pub fn bench_transaction_size(bh: &mut Bencher) {

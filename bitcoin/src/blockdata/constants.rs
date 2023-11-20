@@ -57,6 +57,7 @@ fn bitcoin_genesis_tx() -> Transaction {
     // Base
     let mut ret = Transaction {
         version: transaction::Version::ONE,
+        time: 0,
         lock_time: absolute::LockTime::ZERO,
         input: vec![],
         output: vec![],
