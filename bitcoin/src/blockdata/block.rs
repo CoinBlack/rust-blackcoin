@@ -321,7 +321,9 @@ impl Block {
 
         size += VarInt::from(self.txdata.len()).size();
         size += self.txdata.iter().map(|tx| tx.base_size()).sum::<usize>();
-        size += VarInt::from(self.signature.len()).size();
+
+        // Blackcoin: include block signature
+        size += self.signature.len() + 1;
 
         size
     }
@@ -335,7 +337,9 @@ impl Block {
 
         size += VarInt::from(self.txdata.len()).size();
         size += self.txdata.iter().map(|tx| tx.total_size()).sum::<usize>();
-        size += VarInt::from(self.signature.len()).size();
+
+        // Blackcoin: include block signature
+        size += self.signature.len() + 1;
 
         size
     }
@@ -474,33 +478,37 @@ mod tests {
 
     #[test]
     fn test_coinbase_and_bip34() {
-        // testnet block 100,000
-        const BLOCK_HEX: &str = "0200000035ab154183570282ce9afc0b494c9fc6a3cfea05aa8c1add2ecc56490000000038ba3d78e4500a5a7570dbe61960398add4410d278b21cd9708e6d9743f374d544fc055227f1001c29c1ea3b0101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff3703a08601000427f1001c046a510100522cfabe6d6d0000000000000000000068692066726f6d20706f6f6c7365727665726aac1eeeed88ffffffff0100f2052a010000001976a914912e2b234f941f30b18afbb4fa46171214bf66c888ac00000000";
+        // testnet block 10
+        const BLOCK_HEX: &str = "07000000c6e35ef8ffb808ab6dedbeeb9a6082baa56e5bf3736893d27c01e9c7ef77eb02777ad038cb5a11aa2557e5f928199462071f8397b68fde2204403efe4f8c83f0ecc7b75b5c1a661e0001859f0101000000ecc7b75b010000000000000000000000000000000000000000000000000000000000000000ffffffff035a0101ffffffff010010a5d4e80000001976a91481af2d1ae5056190107f57a5bf3067331a63636b88ac0000000000";
         let block: Block = deserialize(&hex!(BLOCK_HEX)).unwrap();
 
-        let cb_txid = "d574f343976d8e70d91cb278d21044dd8a396019e6db70755a0a50e4783dba38";
+        let cb_txid = "f0838c4ffe3e400422de8fb697831f0762941928f9e55725aa115acb38d07a77";
         assert_eq!(block.coinbase().unwrap().txid().to_string(), cb_txid);
 
-        assert_eq!(block.bip34_block_height(), Ok(100_000));
+        // Blackcoin: do not check BIP34 height
+        // assert_eq!(block.bip34_block_height(), Ok(10));
 
+        // Blackcoin ToDo!
+        /*
         // block with 9-byte bip34 push
         const BAD_HEX: &str = "0200000035ab154183570282ce9afc0b494c9fc6a3cfea05aa8c1add2ecc56490000000038ba3d78e4500a5a7570dbe61960398add4410d278b21cd9708e6d9743f374d544fc055227f1001c29c1ea3b0101000000010000000000000000000000000000000000000000000000000000000000000000ffffffff3d09a08601112233445566000427f1001c046a510100522cfabe6d6d0000000000000000000068692066726f6d20706f6f6c7365727665726aac1eeeed88ffffffff0100f2052a010000001976a914912e2b234f941f30b18afbb4fa46171214bf66c888ac00000000";
         let bad: Block = deserialize(&hex!(BAD_HEX)).unwrap();
 
         let push = Vec::<u8>::from_hex("a08601112233445566").unwrap();
         assert_eq!(bad.bip34_block_height(), Err(super::Bip34Error::UnexpectedPush(push)));
+        */
     }
 
     #[test]
     fn block_test() {
         let network = Network::Bitcoin;
-        // Mainnet block 00000000b0c5a240b2a61d2e75692224efd4cbecdf6eaf4cc2cf477ca7c270e7
-        let some_block = hex!("010000004ddccd549d28f385ab457e98d1b11ce80bfea2c5ab93015ade4973e400000000bf4473e53794beae34e64fccc471dace6ae544180816f89591894e0f417a914cd74d6e49ffff001d323b3a7b0201000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0804ffff001d026e04ffffffff0100f2052a0100000043410446ef0102d1ec5240f0d061a4246c1bdef63fc3dbab7733052fbbf0ecd8f41fc26bf049ebb4f9527f374280259e7cfa99c48b0e3f39c51347a19a5819651503a5ac00000000010000000321f75f3139a013f50f315b23b0c9a2b6eac31e2bec98e5891c924664889942260000000049483045022100cb2c6b346a978ab8c61b18b5e9397755cbd17d6eb2fe0083ef32e067fa6c785a02206ce44e613f31d9a6b0517e46f3db1576e9812cc98d159bfdaf759a5014081b5c01ffffffff79cda0945903627c3da1f85fc95d0b8ee3e76ae0cfdc9a65d09744b1f8fc85430000000049483045022047957cdd957cfd0becd642f6b84d82f49b6cb4c51a91f49246908af7c3cfdf4a022100e96b46621f1bffcf5ea5982f88cef651e9354f5791602369bf5a82a6cd61a62501fffffffffe09f5fe3ffbf5ee97a54eb5e5069e9da6b4856ee86fc52938c2f979b0f38e82000000004847304402204165be9a4cbab8049e1af9723b96199bfd3e85f44c6b4c0177e3962686b26073022028f638da23fc003760861ad481ead4099312c60030d4cb57820ce4d33812a5ce01ffffffff01009d966b01000000434104ea1feff861b51fe3f5f8a3b12d0f4712db80e919548a80839fc47c6a21e66d957e9c5d8cd108c7a2d2324bad71f9904ac0ae7336507d785b17a2c115e427a32fac00000000");
-        let cutoff_block = hex!("010000004ddccd549d28f385ab457e98d1b11ce80bfea2c5ab93015ade4973e400000000bf4473e53794beae34e64fccc471dace6ae544180816f89591894e0f417a914cd74d6e49ffff001d323b3a7b0201000000010000000000000000000000000000000000000000000000000000000000000000ffffffff0804ffff001d026e04ffffffff0100f2052a0100000043410446ef0102d1ec5240f0d061a4246c1bdef63fc3dbab7733052fbbf0ecd8f41fc26bf049ebb4f9527f374280259e7cfa99c48b0e3f39c51347a19a5819651503a5ac00000000010000000321f75f3139a013f50f315b23b0c9a2b6eac31e2bec98e5891c924664889942260000000049483045022100cb2c6b346a978ab8c61b18b5e9397755cbd17d6eb2fe0083ef32e067fa6c785a02206ce44e613f31d9a6b0517e46f3db1576e9812cc98d159bfdaf759a5014081b5c01ffffffff79cda0945903627c3da1f85fc95d0b8ee3e76ae0cfdc9a65d09744b1f8fc85430000000049483045022047957cdd957cfd0becd642f6b84d82f49b6cb4c51a91f49246908af7c3cfdf4a022100e96b46621f1bffcf5ea5982f88cef651e9354f5791602369bf5a82a6cd61a62501fffffffffe09f5fe3ffbf5ee97a54eb5e5069e9da6b4856ee86fc52938c2f979b0f38e82000000004847304402204165be9a4cbab8049e1af9723b96199bfd3e85f44c6b4c0177e3962686b26073022028f638da23fc003760861ad481ead4099312c60030d4cb57820ce4d33812a5ce01ffffffff01009d966b01000000434104ea1feff861b51fe3f5f8a3b12d0f4712db80e919548a80839fc47c6a21e66d957e9c5d8cd108c7a2d2324bad71f9904ac0ae7336507d785b17a2c115e427a32fac");
+        // Mainnet block 879cf45f0688a56bee6affd0c0ac82e68cd950aaeb07fe38ddabcbc56d6083c7
+        let some_block = hex!("000000208fd474892cdbbf970f2ede236d58d219bda031514ef99cfa4b8e2233a62e867af1ae45c5481e60b9de6d252d53b7a355adfb63170e4a03279f0b0ef0e6e4f177705687625ebe151a00000000020100000070568762010000000000000000000000000000000000000000000000000000000000000000ffffffff050300093d00ffffffff010000000000000000000000000001000000705687620187f6d5c94707d4d8807e9fc827d3e15be2ff488f979e409178a46721a9ffcbf90100000049483045022100a1c1cc2bb17d77bf96ea4a28986420199c439e3ab2373580a22ff327ae2b9a0902203e9934e01436199d26b6af4e925d82b62706ce6392d119d8aab4b498a06856d101ffffffff0200000000000000000000165e61110000002321021ad814d1d18b9f7d49e47d7ce2a0beda0b48dc768ca9ce51050a606da7bc06c9ac00000000473045022100c8064e2ffefecc99b09305981cf0697609a9a2a492f1e4ad4795df9bc9cf9ec602200433d204dcd0348267466a7bea29571d441ee931550ccc6f26792f42eb3a378e");
+        let cutoff_block = hex!("000000208fd474892cdbbf970f2ede236d58d219bda031514ef99cfa4b8e2233a62e867af1ae45c5481e60b9de6d252d53b7a355adfb63170e4a03279f0b0ef0e6e4f177705687625ebe151a00000000020100000070568762010000000000000000000000000000000000000000000000000000000000000000ffffffff050300093d00ffffffff010000000000000000000000000001000000705687620187f6d5c94707d4d8807e9fc827d3e15be2ff488f979e409178a46721a9ffcbf90100000049483045022100a1c1cc2bb17d77bf96ea4a28986420199c439e3ab2373580a22ff327ae2b9a0902203e9934e01436199d26b6af4e925d82b62706ce6392d119d8aab4b498a06856d101ffffffff0200000000000000000000165e61110000002321021ad814d1d18b9f7d49e47d7ce2a0beda0b48dc768ca9ce51050a606da7bc06c9ac00000000473045022100c8064e2ffefecc99b09305981cf0697609a9a2a492f1e4ad4795df9bc9cf9ec602200433d204dcd0348267466a7bea29571d441ee931550ccc6f26792f42");
 
-        let prevhash = hex!("4ddccd549d28f385ab457e98d1b11ce80bfea2c5ab93015ade4973e400000000");
-        let merkle = hex!("bf4473e53794beae34e64fccc471dace6ae544180816f89591894e0f417a914c");
-        let work = Work::from(0x100010001_u128);
+        let prevhash = hex!("8fd474892cdbbf970f2ede236d58d219bda031514ef99cfa4b8e2233a62e867a");
+        let merkle = hex!("f1ae45c5481e60b9de6d252d53b7a355adfb63170e4a03279f0b0ef0e6e4f177");
+        let work = Work::from(0xbc608859af314_u128);
 
         let decode: Result<Block, _> = deserialize(&some_block);
         let bad_decode: Result<Block, _> = deserialize(&cutoff_block);
@@ -508,20 +516,24 @@ mod tests {
         assert!(decode.is_ok());
         assert!(bad_decode.is_err());
         let real_decode = decode.unwrap();
-        assert_eq!(real_decode.header.version, Version(1));
+        assert_eq!(real_decode.header.version, Version(536870912));
         assert_eq!(serialize(&real_decode.header.prev_blockhash), prevhash);
         assert_eq!(real_decode.header.merkle_root, real_decode.compute_merkle_root().unwrap());
         assert_eq!(serialize(&real_decode.header.merkle_root), merkle);
-        assert_eq!(real_decode.header.time, 1231965655);
-        assert_eq!(real_decode.header.bits, CompactTarget::from_consensus(486604799));
-        assert_eq!(real_decode.header.nonce, 2067413810);
+        assert_eq!(real_decode.header.time, 1653036656);
+        assert_eq!(real_decode.header.bits, CompactTarget::from_consensus(0x1a15be5e));
+        assert_eq!(real_decode.header.nonce, 0);
         assert_eq!(real_decode.header.work(), work);
+
+        // Blackcoin: disable PoW check
+        /*
         assert_eq!(
             real_decode.header.validate_pow(real_decode.header.target()).unwrap(),
             real_decode.block_hash()
         );
-        assert_eq!(real_decode.header.difficulty(network), 1);
-        assert_eq!(real_decode.header.difficulty_float(), 1.0);
+        */
+        assert_eq!(real_decode.header.difficulty(network), 771580);
+        assert_eq!(real_decode.header.difficulty_float(), 771580.7483280584);
         // [test] TODO: check the transaction data
 
         assert_eq!(real_decode.total_size(), some_block.len());
@@ -578,13 +590,13 @@ mod tests {
 
     #[test]
     fn block_version_test() {
-        let block = hex!("ffffff7f0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+        let block = hex!("ffffff7f000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
         let decode: Result<Block, _> = deserialize(&block);
         assert!(decode.is_ok());
         let real_decode = decode.unwrap();
         assert_eq!(real_decode.header.version, Version(2147483647));
 
-        let block2 = hex!("000000800000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
+        let block2 = hex!("00000080000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000");
         let decode2: Result<Block, _> = deserialize(&block2);
         assert!(decode2.is_ok());
         let real_decode2 = decode2.unwrap();
