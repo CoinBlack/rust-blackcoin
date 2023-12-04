@@ -10,7 +10,6 @@ use core::{fmt, iter};
 use std::net::{Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6, ToSocketAddrs};
 
 use crate::consensus::encode::{self, Decodable, Encodable, ReadExt, VarInt, WriteExt};
-use crate::io;
 use crate::p2p::ServiceFlags;
 use crate::prelude::*;
 
@@ -116,7 +115,7 @@ impl fmt::Debug for Address {
 
 impl ToSocketAddrs for Address {
     type Iter = iter::Once<SocketAddr>;
-    fn to_socket_addrs(&self) -> Result<Self::Iter, io::Error> {
+    fn to_socket_addrs(&self) -> Result<Self::Iter, std::io::Error> {
         Ok(iter::once(self.socket_addr()?))
     }
 }
@@ -296,7 +295,7 @@ impl Decodable for AddrV2Message {
 
 impl ToSocketAddrs for AddrV2Message {
     type Iter = iter::Once<SocketAddr>;
-    fn to_socket_addrs(&self) -> Result<Self::Iter, io::Error> {
+    fn to_socket_addrs(&self) -> Result<Self::Iter, std::io::Error> {
         Ok(iter::once(self.socket_addr()?))
     }
 }

@@ -10,6 +10,7 @@ use core::cmp::{Ordering, PartialOrd};
 use core::{fmt, mem};
 
 use internals::write_err;
+use io::{Read, Write};
 #[cfg(all(test, mutate))]
 use mutagen::mutate;
 
@@ -17,7 +18,6 @@ use mutagen::mutate;
 use crate::absolute;
 use crate::consensus::encode::{self, Decodable, Encodable};
 use crate::error::ParseIntError;
-use crate::io::{self, Read, Write};
 use crate::parse::{impl_parse_str_from_int_fallible, impl_parse_str_from_int_infallible};
 use crate::prelude::*;
 use crate::string::FromHexStr;
@@ -374,14 +374,12 @@ impl<'de> serde::Deserialize<'de> for LockTime {
             // calls visit_u64, even when called from Deserializer::deserialize_u32. The
             // other visit_u*s have default implementations that forward to visit_u64.
             fn visit_u64<E: serde::de::Error>(self, v: u64) -> Result<u32, E> {
-                use core::convert::TryInto;
                 v.try_into().map_err(|_| {
                     E::invalid_value(serde::de::Unexpected::Unsigned(v), &"a 32-bit number")
                 })
             }
             // Also do the signed version, just for good measure.
             fn visit_i64<E: serde::de::Error>(self, v: i64) -> Result<u32, E> {
-                use core::convert::TryInto;
                 v.try_into().map_err(|_| {
                     E::invalid_value(serde::de::Unexpected::Signed(v), &"a 32-bit number")
                 })

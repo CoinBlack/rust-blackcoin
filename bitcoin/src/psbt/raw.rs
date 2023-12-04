@@ -6,14 +6,12 @@
 //! <https://github.com/bitcoin/bips/blob/master/bip-0174.mediawiki>.
 //!
 
-use core::convert::TryFrom;
 use core::fmt;
 
 use super::serialize::{Deserialize, Serialize};
 use crate::consensus::encode::{
     self, deserialize, serialize, Decodable, Encodable, ReadExt, VarInt, WriteExt, MAX_VEC_SIZE,
 };
-use crate::io;
 use crate::prelude::*;
 use crate::psbt::Error;
 
@@ -196,7 +194,7 @@ where
 }
 
 // core2 doesn't have read_to_end
-pub(crate) fn read_to_end<D: io::Read>(mut d: D) -> Result<Vec<u8>, io::Error> {
+pub(crate) fn read_to_end<D: io::Read + ?Sized>(d: &mut D) -> Result<Vec<u8>, io::Error> {
     let mut result = vec![];
     let mut buf = [0u8; 64];
     loop {

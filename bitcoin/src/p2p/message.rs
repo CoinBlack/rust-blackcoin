@@ -6,15 +6,12 @@
 //! are used for (de)serializing Bitcoin objects for transmission on the network.
 //!
 
-use core::convert::TryFrom;
 use core::{fmt, iter};
 
 use hashes::{sha256d, Hash};
-use io::Read as _;
 
 use crate::blockdata::{block, transaction};
 use crate::consensus::encode::{self, CheckedData, Decodable, Encodable, VarInt};
-use crate::io;
 use crate::merkle_tree::MerkleBlock;
 use crate::p2p::address::{AddrV2Message, Address};
 use crate::p2p::{
@@ -429,7 +426,7 @@ impl Decodable for HeaderDeserializationWrapper {
 
     #[inline]
     fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, encode::Error> {
-        Self::consensus_decode_from_finite_reader(r.take(MAX_MSG_SIZE as u64).by_ref())
+        Self::consensus_decode_from_finite_reader(&mut r.take(MAX_MSG_SIZE as u64))
     }
 }
 
@@ -534,7 +531,7 @@ impl Decodable for RawNetworkMessage {
 
     #[inline]
     fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, encode::Error> {
-        Self::consensus_decode_from_finite_reader(r.take(MAX_MSG_SIZE as u64).by_ref())
+        Self::consensus_decode_from_finite_reader(&mut r.take(MAX_MSG_SIZE as u64))
     }
 }
 

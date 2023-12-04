@@ -13,8 +13,7 @@ use crate::{FromSliceError, HashEngine as _};
 crate::internal_macros::hash_type! {
     160,
     false,
-    "Output of the SHA1 hash function.",
-    "crate::util::json_hex_string::len_20"
+    "Output of the SHA1 hash function."
 }
 
 fn from_engine(mut e: HashEngine) -> Hash {
@@ -103,10 +102,10 @@ impl HashEngine {
 
         for (i, &wi) in w.iter().enumerate() {
             let (f, k) = match i {
-                0...19 => ((b & c) | (!b & d), 0x5a827999),
-                20...39 => (b ^ c ^ d, 0x6ed9eba1),
-                40...59 => ((b & c) | (b & d) | (c & d), 0x8f1bbcdc),
-                60...79 => (b ^ c ^ d, 0xca62c1d6),
+                0..=19 => ((b & c) | (!b & d), 0x5a827999),
+                20..=39 => (b ^ c ^ d, 0x6ed9eba1),
+                40..=59 => ((b & c) | (b & d) | (c & d), 0x8f1bbcdc),
+                60..=79 => (b ^ c ^ d, 0xca62c1d6),
                 _ => unreachable!(),
             };
 

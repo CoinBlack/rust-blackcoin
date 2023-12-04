@@ -18,7 +18,6 @@
 //! assert_eq!(&bytes[..], &[0xF9, 0xBE, 0xB4, 0xD9]);
 //! ```
 
-use core::convert::TryFrom;
 use core::fmt;
 use core::fmt::Display;
 use core::str::FromStr;
@@ -27,6 +26,7 @@ use internals::write_err;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+use crate::consensus::Params;
 use crate::constants::ChainHash;
 use crate::p2p::Magic;
 use crate::prelude::{String, ToOwned};
@@ -143,6 +143,17 @@ impl Network {
     /// ```
     pub fn from_chain_hash(chain_hash: ChainHash) -> Option<Network> {
         Network::try_from(chain_hash).ok()
+    }
+
+    /// Returns the associated network parameters.
+    pub const fn params(self) -> &'static Params {
+        const PARAMS: [Params; 4] = [
+            Params::new(Network::Bitcoin),
+            Params::new(Network::Testnet),
+            Params::new(Network::Signet),
+            Params::new(Network::Regtest),
+        ];
+        &PARAMS[self as usize]
     }
 }
 

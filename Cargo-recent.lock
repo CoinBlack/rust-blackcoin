@@ -37,15 +37,14 @@ dependencies = [
  "bech32",
  "bincode",
  "bitcoin-internals",
+ "bitcoin-io",
  "bitcoin_hashes",
  "bitcoinconsensus",
- "core2",
  "hex-conservative",
  "hex_lit",
  "mutagen",
  "secp256k1",
  "serde",
- "serde_derive",
  "serde_json",
  "serde_test",
 ]
@@ -69,10 +68,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "bitcoin-io"
+version = "0.1.0"
+
+[[package]]
 name = "bitcoin_hashes"
 version = "0.13.0"
 dependencies = [
- "core2",
+ "bitcoin-io",
  "hex-conservative",
  "schemars",
  "serde",
@@ -109,15 +112,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
-name = "core2"
-version = "0.3.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "239fa3ae9b63c2dc74bd3fa852d4792b8b305ae64eeede946265b6af62f1fff3"
-dependencies = [
- "memchr",
-]
-
-[[package]]
 name = "dyn-clone"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -145,9 +139,6 @@ name = "hex-conservative"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "30ed443af458ccb6d81c1e7e661545f94d3176752fb1df2f543b902a1e0f51e2"
-dependencies = [
- "core2",
-]
 
 [[package]]
 name = "hex_lit"
@@ -189,12 +180,6 @@ name = "libc"
 version = "0.2.142"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a987beff54b60ffa6d51982e1aa1146bc42f19bd26be28b0586f252fccf5317"
-
-[[package]]
-name = "memchr"
-version = "2.5.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
 
 [[package]]
 name = "memmap2"
@@ -314,21 +299,8 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "02c613288622e5f0c3fdc5dbd4db1c5fbe752746b1d1a56a0630b78fd00de44f"
 dependencies = [
  "dyn-clone",
- "schemars_derive",
  "serde",
  "serde_json",
-]
-
-[[package]]
-name = "schemars_derive"
-version = "0.8.12"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "109da1e6b197438deb6db99952990c7f959572794b80ff93707d55a232545e7c"
-dependencies = [
- "proc-macro2",
- "quote",
- "serde_derive_internals",
- "syn",
 ]
 
 [[package]]
@@ -383,17 +355,6 @@ name = "serde_derive"
 version = "1.0.156"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d7e29c4601e36bcec74a223228dce795f4cd3616341a4af93520ca1a837c087d"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
-name = "serde_derive_internals"
-version = "0.26.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85bf8229e7920a9f636479437026331ce11aa132b4dde37d121944a44d6e5f3c"
 dependencies = [
  "proc-macro2",
  "quote",
