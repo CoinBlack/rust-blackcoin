@@ -1094,10 +1094,10 @@ impl Decodable for Sequence {
 impl Encodable for Transaction {
     fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
         let mut len = 0;
+        len += self.version.consensus_encode(w)?;
         if self.version == Version::ONE {
-            len += self.version.consensus_encode(w)?;
+            len += self.time.consensus_encode(w)?;
         }
-        len += self.time.consensus_encode(w)?;
 
         // Legacy transaction serialization format only includes inputs and outputs.
         if !self.use_segwit_serialization() {
