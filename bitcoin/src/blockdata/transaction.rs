@@ -818,8 +818,10 @@ impl Transaction {
     }
 
     /// Blackcoin: checks if this is a coinstake transaction.
+    ///
+    /// The second transaction in the proof-of-stake block is called the coinstake transaction.
     pub fn is_coinstake(&self) -> bool {
-        self.input.len() > 0 && (!self.input[0].previous_output.is_null()) && self.output.len() >= 2 && self.output[0].is_empty()
+        !self.input.is_empty() && (!self.input[0].previous_output.is_null()) && self.output.len() >= 2 && self.output[0].is_empty()
     }
 
     /// Checks if this is a coinbase transaction.
@@ -1617,13 +1619,19 @@ mod tests {
         assert!(!tx.is_coinbase());
     }
 
-    // Blackcoin ToDo: add test for is_coinstake()
-    /*
     #[test]
     fn is_coinstake() {
-        // ToDo
+        use crate::Block;
+        let block = hex!("000000208fd474892cdbbf970f2ede236d58d219bda031514ef99cfa4b8e2233a62e867af1ae45c5481e60b9de6d252d53b7a355adfb63170e4a03279f0b0ef0e6e4f177705687625ebe151a00000000020100000070568762010000000000000000000000000000000000000000000000000000000000000000ffffffff050300093d00ffffffff010000000000000000000000000001000000705687620187f6d5c94707d4d8807e9fc827d3e15be2ff488f979e409178a46721a9ffcbf90100000049483045022100a1c1cc2bb17d77bf96ea4a28986420199c439e3ab2373580a22ff327ae2b9a0902203e9934e01436199d26b6af4e925d82b62706ce6392d119d8aab4b498a06856d101ffffffff0200000000000000000000165e61110000002321021ad814d1d18b9f7d49e47d7ce2a0beda0b48dc768ca9ce51050a606da7bc06c9ac00000000473045022100c8064e2ffefecc99b09305981cf0697609a9a2a492f1e4ad4795df9bc9cf9ec602200433d204dcd0348267466a7bea29571d441ee931550ccc6f26792f42eb3a378e");
+        let decode: Result<Block, _> = deserialize(&block);
+        assert!(decode.is_ok());
+        let real_decode = decode.unwrap();
+        assert!(real_decode.txdata[1].is_coinstake());
+
+        let tx_bytes = hex!("010000001c0d666501a381bf0282d770c0267a9901beef8f9cccf56857fb1faec4898de92f8d8502da000000006b483045022100cf2efb0252bd40d2e7c072be19e8ce2f78615ec6688c2b026f1bbfc37c64253502202c356fb9fd6b9736094667342c594e4c98eae1a2935e8ee1a7d32de93b8ebd890121033356d9b2f41ebfbbc9b9c43b58af5365b6bb821ff93867047f4c396c1a7f7276ffffffff02f6182300000000001976a914ca1e04745e8ca0c60d8c5881531d51bec470743f88ac6a9d1e25050000001976a914c0f212680244cdbd04507a9df77f1abee14d820388ac1c0d6665");
+        let tx: Transaction = deserialize(&tx_bytes).unwrap();
+        assert!(!tx.is_coinstake());
     }
-    */
 
     #[test]
     fn nonsegwit_transaction() {
