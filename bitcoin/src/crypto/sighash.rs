@@ -16,12 +16,13 @@ use core::{fmt, str};
 
 use hashes::{hash_newtype, sha256, sha256d, sha256t_hash_newtype, Hash};
 use internals::write_err;
+use io::Write;
 
 use crate::blockdata::witness::Witness;
 use crate::consensus::{encode, Encodable};
 use crate::prelude::*;
 use crate::taproot::{LeafVersion, TapLeafHash, TAPROOT_ANNEX_PREFIX};
-use crate::{io, Amount, Script, ScriptBuf, Sequence, Transaction, TxIn, TxOut};
+use crate::{Amount, Script, ScriptBuf, Sequence, Transaction, TxIn, TxOut};
 
 /// Used for signature hash for invalid use of SIGHASH_SINGLE.
 #[rustfmt::skip]
@@ -671,11 +672,11 @@ impl<R: Borrow<Transaction>> SighashCache<R> {
     /// Destroys the cache and recovers the stored transaction.
     pub fn into_transaction(self) -> R { self.tx }
 
-    /// Encodes the BIP341 signing data for any flag type into a given object implementing a
+    /// Encodes the BIP341 signing data for any flag type into a given object implementing the
     /// [`io::Write`] trait.
-    pub fn taproot_encode_signing_data_to<Write: io::Write + ?Sized, T: Borrow<TxOut>>(
+    pub fn taproot_encode_signing_data_to<W: Write + ?Sized, T: Borrow<TxOut>>(
         &mut self,
-        writer: &mut Write,
+        writer: &mut W,
         input_index: usize,
         prevouts: &Prevouts<T>,
         annex: Option<Annex>,
@@ -854,15 +855,15 @@ impl<R: Borrow<Transaction>> SighashCache<R> {
         Ok(TapSighash::from_engine(enc))
     }
 
-    /// Encodes the BIP143 signing data for any flag type into a given object implementing a
+    /// Encodes the BIP143 signing data for any flag type into a given object implementing the
     /// [`std::io::Write`] trait.
     ///
     /// `script_code` is dependent on the type of the spend transaction. For p2wpkh use
     /// [`Script::p2wpkh_script_code`], for p2wsh just pass in the witness script. (Also see
     /// [`Self::p2wpkh_signature_hash`] and [`SighashCache::p2wsh_signature_hash`].)
-    pub fn segwit_v0_encode_signing_data_to<Write: io::Write + ?Sized>(
+    pub fn segwit_v0_encode_signing_data_to<W: Write + ?Sized>(
         &mut self,
-        writer: &mut Write,
+        writer: &mut W,
         input_index: usize,
         script_code: &Script,
         value: Amount,
@@ -984,9 +985,9 @@ impl<R: Borrow<Transaction>> SighashCache<R> {
     ///
     /// This function can't handle the SIGHASH_SINGLE bug internally, so it returns [`EncodeSigningDataResult`]
     /// that must be handled by the caller (see [`EncodeSigningDataResult::is_sighash_single_bug`]).
-    pub fn legacy_encode_signing_data_to<Write: io::Write + ?Sized, U: Into<u32>>(
+    pub fn legacy_encode_signing_data_to<W: Write + ?Sized, U: Into<u32>>(
         &self,
-        writer: &mut Write,
+        writer: &mut W,
         input_index: usize,
         script_pubkey: &Script,
         sighash_type: U,
@@ -1011,9 +1012,9 @@ impl<R: Borrow<Transaction>> SighashCache<R> {
             return EncodeSigningDataResult::SighashSingleBug;
         }
 
-        fn encode_signing_data_to_inner<Write: io::Write + ?Sized>(
+        fn encode_signing_data_to_inner<W: Write + ?Sized>(
             self_: &Transaction,
-            writer: &mut Write,
+            writer: &mut W,
             input_index: usize,
             script_pubkey: &Script,
             sighash_type: u32,
@@ -1188,25 +1189,34 @@ impl<R: Borrow<Transaction>> SighashCache<R> {
 }
 
 impl<R: BorrowMut<Transaction>> SighashCache<R> {
-    /// When the `SighashCache` is initialized with a mutable reference to a transaction instead of
-    /// a regular reference, this method is available to allow modification to the witnesses.
+    /// Allows modification of witnesses.
     ///
-    /// This allows in-line signing such as
+    /// As a lint against accidental changes to the transaction that would invalidate the cache and
+    /// signatures, `SighashCache` borrows the Transaction so that modifying it is not possible
+    /// without hacks with `UnsafeCell` (which is hopefully a strong indication that something is
+    /// wrong). However modifying witnesses never invalidates the cache and is actually useful - one
+    /// usually wants to put the signature generated for an input into the witness of that input.
+    ///
+    /// This method allows doing exactly that if the transaction is owned by the `SighashCache` or
+    /// borrowed mutably.
+    ///
+    /// # Examples
+    ///
+    /// ```compile_fail
+    /// let mut sighasher = SighashCache::new(&mut tx_to_sign);
+    /// let sighash = sighasher.p2wpkh_signature_hash(input_index, &utxo.script_pubkey, amount, sighash_type)?;
+    ///
+    /// let signature = {
+    ///     // Sign the sighash using secp256k1
+    /// };
+    ///
+    /// *sighasher.witness_mut(input_index).unwrap() = Witness::p2wpkh(&signature, &pk);
     /// ```
-    /// use bitcoin::{absolute, transaction, Amount, Transaction, Script};
-    /// use bitcoin::sighash::{EcdsaSighashType, SighashCache};
     ///
-    /// let mut tx_to_sign = Transaction { version: transaction::Version::TWO, lock_time: absolute::LockTime::ZERO, input: Vec::new(), output: Vec::new() };
-    /// let input_count = tx_to_sign.input.len();
+    /// For full signing code see the [`segwit v0`] and [`taproot`] signing examples.
     ///
-    /// let mut sig_hasher = SighashCache::new(&mut tx_to_sign);
-    /// for inp in 0..input_count {
-    ///     let prevout_script = Script::new();
-    ///     let _sighash = sig_hasher.p2wpkh_signature_hash(inp, prevout_script, Amount::ONE_SAT, EcdsaSighashType::All);
-    ///     // ... sign the sighash
-    ///     sig_hasher.witness_mut(inp).unwrap().push(&Vec::new());
-    /// }
-    /// ```
+    /// [`segwit v0`]: <https://github.com/rust-bitcoin/rust-bitcoin/blob/master/bitcoin/examples/sign-tx-segwit-v0.rs>
+    /// [`taproot`]: <https://github.com/rust-bitcoin/rust-bitcoin/blob/master/bitcoin/examples/sign-tx-taproot.rs>
     pub fn witness_mut(&mut self, input_index: usize) -> Option<&mut Witness> {
         self.tx.borrow_mut().input.get_mut(input_index).map(|i| &mut i.witness)
     }
@@ -1231,7 +1241,7 @@ impl<'a> Annex<'a> {
 }
 
 impl<'a> Encodable for Annex<'a> {
-    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
+    fn consensus_encode<W: Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
         encode::consensus_encode_with_size(self.0, w)
     }
 }

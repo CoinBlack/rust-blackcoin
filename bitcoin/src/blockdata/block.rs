@@ -10,23 +10,39 @@
 
 use core::fmt;
 
-use hashes::{Hash, HashEngine};
+use hashes::{sha256d, Hash, HashEngine};
+use io::{Read, Write};
 
 use super::Weight;
 use crate::blockdata::script;
-use crate::blockdata::transaction::Transaction;
+use crate::blockdata::transaction::{Transaction, Txid, Wtxid};
 use crate::consensus::{encode, Decodable, Encodable};
-use crate::hash_types::{TxMerkleNode, WitnessCommitment, WitnessMerkleNode, Wtxid};
-use crate::internal_macros::impl_consensus_encoding;
+use crate::internal_macros::{impl_consensus_encoding, impl_hashencode};
 use crate::pow::{CompactTarget, Target, Work};
 use crate::prelude::*;
 use crate::{merkle_tree, Network, VarInt};
 
-#[rustfmt::skip]                // Keep public re-exports separate.
-#[doc(inline)]
-pub use crate::{
-    hash_types::BlockHash,
-};
+hashes::hash_newtype! {
+    /// A bitcoin block hash.
+    pub struct BlockHash(sha256d::Hash);
+    /// A hash of the Merkle tree branch or root for transactions.
+    pub struct TxMerkleNode(sha256d::Hash);
+    /// A hash corresponding to the Merkle tree root for witness data.
+    pub struct WitnessMerkleNode(sha256d::Hash);
+    /// A hash corresponding to the witness structure commitment in the coinbase transaction.
+    pub struct WitnessCommitment(sha256d::Hash);
+}
+impl_hashencode!(BlockHash);
+impl_hashencode!(TxMerkleNode);
+impl_hashencode!(WitnessMerkleNode);
+
+impl From<Txid> for TxMerkleNode {
+    fn from(txid: Txid) -> Self { Self::from_byte_array(txid.to_byte_array()) }
+}
+
+impl From<Wtxid> for WitnessMerkleNode {
+    fn from(wtxid: Wtxid) -> Self { Self::from_byte_array(wtxid.to_byte_array()) }
+}
 
 /// Bitcoin block header.
 ///
@@ -185,13 +201,13 @@ impl Default for Version {
 }
 
 impl Encodable for Version {
-    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
+    fn consensus_encode<W: Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
         self.0.consensus_encode(w)
     }
 }
 
 impl Decodable for Version {
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, encode::Error> {
+    fn consensus_decode<R: Read + ?Sized>(r: &mut R) -> Result<Self, encode::Error> {
         Decodable::consensus_decode(r).map(Version)
     }
 }

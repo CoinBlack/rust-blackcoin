@@ -18,8 +18,6 @@ changes to this document in a pull request.
   * [Peer review](#peer-review)
   * [Repository maintainers](#repository-maintainers)
 - [Coding conventions](#coding-conventions)
-  * [Formatting](#formatting)
-  * [MSRV](#msrv)
   * [Naming conventions](#naming-conventions)
   * [Upgrading dependencies](#upgrading-dependencies)
   * [Unsafe code](#unsafe-code)
@@ -255,6 +253,49 @@ pub use {
 }
 ```
 
+#### Return `Self`
+
+Use `Self` as the return type instead of naming the type. When constructing the return value use
+`Self` or the type name, whichever you prefer.
+
+```rust
+/// A counter that is always smaller than 100.
+pub struct Counter(u32);
+
+impl Counter {
+    /// Constructs a new `Counter`.
+    pub fn new() -> Self { Self(0) }
+
+    /// Returns a counter if it is possible to create one from x.
+    pub fn maybe(x: u32) -> Option<Self> {
+        match x {
+            x if x >= 100 => None,
+            c => Some(Counter(c)),
+        }
+    }
+}
+
+impl TryFrom<u32> for Counter {
+    type Error = TooBigError;
+
+    fn try_from(x: u32) -> Result<Self, Self::Error> {
+        if x >= 100 {
+            return Err(TooBigError);
+        }
+        Ok(Counter(x))
+    }
+}
+```
+
+When constructing the return value for error enums use `Self`.
+
+```rust
+impl From<foo::Error> for LongDescriptiveError {
+    fn from(e: foo::Error) -> Self { Self::Foo(e) }
+}
+```
+
+
 #### Errors
 
 Return as much context as possible with errors e.g., if an error was encountered parsing a string
@@ -335,6 +376,27 @@ Add Panics section if any input to the function can trigger a panic.
 Generally we prefer to have non-panicking APIs but it is impractical in some cases. If you're not
 sure, feel free to ask. If we determine panicking is more practical it must be documented. Internal
 panics that could theoretically occur because of bugs in our code must not be documented.
+
+
+#### Derives
+
+We try to use standard set of derives if it makes sense:
+
+```
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+enum Foo {
+    Bar,
+    Baz,
+}
+```
+
+For types that do should not form a total or partial order, or that technically do but it does not
+make sense to compare them, we use the `Ordered` trait from the
+[`ordered`](https://crates.io/crates/ordered) crate. See `absolute::LockTime` for an example.
+
+For error types you likely want to use `#[derive(Debug, Clone, PartialEq, Eq)]`.
+
+See [Errors](#errors) section.
 
 
 #### Attributes

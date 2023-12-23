@@ -66,12 +66,14 @@ use core::fmt;
 use core::ops::{Deref, DerefMut};
 
 use hashes::{hash160, sha256};
+use io::{Read, Write};
 #[cfg(feature = "serde")]
 use serde;
 
 use crate::blockdata::opcodes::all::*;
 use crate::blockdata::opcodes::{self, Opcode};
 use crate::consensus::{encode, Decodable, Encodable};
+use crate::internal_macros::impl_asref_push_bytes;
 use crate::prelude::*;
 use crate::{io, OutPoint};
 
@@ -91,7 +93,7 @@ hashes::hash_newtype! {
     /// SegWit version of a Bitcoin Script bytecode hash.
     pub struct WScriptHash(sha256::Hash);
 }
-crate::hash_types::impl_asref_push_bytes!(ScriptHash, WScriptHash);
+impl_asref_push_bytes!(ScriptHash, WScriptHash);
 
 impl From<ScriptBuf> for ScriptHash {
     fn from(script: ScriptBuf) -> ScriptHash { script.script_hash() }
@@ -578,21 +580,21 @@ impl<'de> serde::Deserialize<'de> for ScriptBuf {
 
 impl Encodable for Script {
     #[inline]
-    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
+    fn consensus_encode<W: Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
         crate::consensus::encode::consensus_encode_with_size(&self.0, w)
     }
 }
 
 impl Encodable for ScriptBuf {
     #[inline]
-    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
+    fn consensus_encode<W: Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
         self.0.consensus_encode(w)
     }
 }
 
 impl Decodable for ScriptBuf {
     #[inline]
-    fn consensus_decode_from_finite_reader<R: io::Read + ?Sized>(
+    fn consensus_decode_from_finite_reader<R: Read + ?Sized>(
         r: &mut R,
     ) -> Result<Self, encode::Error> {
         Ok(ScriptBuf(Decodable::consensus_decode_from_finite_reader(r)?))

@@ -16,15 +16,16 @@ use core::{cmp, fmt, str};
 
 use hashes::{self, sha256d, Hash};
 use internals::write_err;
+use io::{Read, Write};
 
 use super::Weight;
+use crate::blockdata::fee_rate::FeeRate;
 use crate::blockdata::locktime::absolute::{self, Height, Time};
 use crate::blockdata::locktime::relative;
 use crate::blockdata::script::{Script, ScriptBuf};
 use crate::blockdata::witness::Witness;
 use crate::consensus::{encode, Decodable, Encodable};
-use crate::hash_types::{Txid, Wtxid};
-use crate::internal_macros::impl_consensus_encoding;
+use crate::internal_macros::{impl_consensus_encoding, impl_hashencode};
 use crate::parse::impl_parse_str_from_int_infallible;
 use crate::prelude::*;
 use crate::script::Push;
@@ -37,6 +38,21 @@ use crate::{Amount, VarInt};
 #[cfg(feature = "bitcoinconsensus")]
 #[doc(inline)]
 pub use crate::consensus::validation::TxVerifyError;
+
+hashes::hash_newtype! {
+    /// A bitcoin transaction hash/transaction ID.
+    ///
+    /// For compatibility with the existing Bitcoin infrastructure and historical and current
+    /// versions of the Bitcoin Core software itself, this and other [`sha256d::Hash`] types, are
+    /// serialized in reverse byte order when converted to a hex string via [`std::fmt::Display`]
+    /// trait operations. See [`hashes::Hash::DISPLAY_BACKWARD`] for more details.
+    pub struct Txid(sha256d::Hash);
+
+    /// A bitcoin witness transaction ID.
+    pub struct Wtxid(sha256d::Hash);
+}
+impl_hashencode!(Txid);
+impl_hashencode!(Wtxid);
 
 /// The marker MUST be a 1-byte zero value: 0x00. (BIP-141)
 const SEGWIT_MARKER: u8 = 0x00;
@@ -537,21 +553,29 @@ impl TxOut {
     /// Creates a `TxOut` with given script and the smallest possible `value` that is **not** dust
     /// per current Core policy.
     ///
-    /// The current dust fee rate is 3 sat/vB.
+    /// Dust depends on the -dustrelayfee value of the Bitcoin Core node you are broadcasting to.
+    /// This function uses the default value of 0.00003 BTC/kB (3 sat/vByte).
+    ///
+    /// To use a custom value, use [`minimal_non_dust_custom`].
+    ///
+    /// [`minimal_non_dust_custom`]: TxOut::minimal_non_dust_custom
     pub fn minimal_non_dust(script_pubkey: ScriptBuf) -> Self {
-        let len = size_from_script_pubkey(&script_pubkey);
-        let len = len
-            + if script_pubkey.is_witness_program() {
-                32 + 4 + 1 + (107 / 4) + 4
-            } else {
-                32 + 4 + 1 + 107 + 4
-            };
-        let dust_amount = (len as u64) * 3;
+        TxOut { value: script_pubkey.minimal_non_dust(), script_pubkey }
+    }
 
-        TxOut {
-            value: Amount::from_sat(dust_amount + 1), // minimal non-dust amount is one higher than dust amount
-            script_pubkey,
-        }
+    /// Creates a `TxOut` with given script and the smallest possible `value` that is **not** dust
+    /// per current Core policy.
+    ///
+    /// Dust depends on the -dustrelayfee value of the Bitcoin Core node you are broadcasting to.
+    /// This function lets you set the fee rate used in dust calculation.
+    ///
+    /// The current default value in Bitcoin Core (as of v26) is 3 sat/vByte.
+    ///
+    /// To use the default Bitcoin Core value, use [`minimal_non_dust`].
+    ///
+    /// [`minimal_non_dust`]: TxOut::minimal_non_dust
+    pub fn minimal_non_dust_custom(script_pubkey: ScriptBuf, dust_relay_fee: FeeRate) -> Self {
+        TxOut { value: script_pubkey.minimal_non_dust_custom(dust_relay_fee), script_pubkey }
     }
 
     /// Blackcoin: used for identifying coinstake transactions.
@@ -1030,13 +1054,13 @@ impl Version {
 }
 
 impl Encodable for Version {
-    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
+    fn consensus_encode<W: Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
         self.0.consensus_encode(w)
     }
 }
 
 impl Decodable for Version {
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, encode::Error> {
+    fn consensus_decode<R: Read + ?Sized>(r: &mut R) -> Result<Self, encode::Error> {
         Decodable::consensus_decode(r).map(Version)
     }
 }
@@ -1044,13 +1068,13 @@ impl Decodable for Version {
 impl_consensus_encoding!(TxOut, value, script_pubkey);
 
 impl Encodable for OutPoint {
-    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
+    fn consensus_encode<W: Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
         let len = self.txid.consensus_encode(w)?;
         Ok(len + self.vout.consensus_encode(w)?)
     }
 }
 impl Decodable for OutPoint {
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, encode::Error> {
+    fn consensus_decode<R: Read + ?Sized>(r: &mut R) -> Result<Self, encode::Error> {
         Ok(OutPoint {
             txid: Decodable::consensus_decode(r)?,
             vout: Decodable::consensus_decode(r)?,
@@ -1059,7 +1083,7 @@ impl Decodable for OutPoint {
 }
 
 impl Encodable for TxIn {
-    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
+    fn consensus_encode<W: Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
         let mut len = 0;
         len += self.previous_output.consensus_encode(w)?;
         len += self.script_sig.consensus_encode(w)?;
@@ -1069,7 +1093,7 @@ impl Encodable for TxIn {
 }
 impl Decodable for TxIn {
     #[inline]
-    fn consensus_decode_from_finite_reader<R: io::Read + ?Sized>(
+    fn consensus_decode_from_finite_reader<R: Read + ?Sized>(
         r: &mut R,
     ) -> Result<Self, encode::Error> {
         Ok(TxIn {
@@ -1082,19 +1106,19 @@ impl Decodable for TxIn {
 }
 
 impl Encodable for Sequence {
-    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
+    fn consensus_encode<W: Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
         self.0.consensus_encode(w)
     }
 }
 
 impl Decodable for Sequence {
-    fn consensus_decode<R: io::Read + ?Sized>(r: &mut R) -> Result<Self, encode::Error> {
+    fn consensus_decode<R: Read + ?Sized>(r: &mut R) -> Result<Self, encode::Error> {
         Decodable::consensus_decode(r).map(Sequence)
     }
 }
 
 impl Encodable for Transaction {
-    fn consensus_encode<W: io::Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
+    fn consensus_encode<W: Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
         let mut len = 0;
         len += self.version.consensus_encode(w)?;
         if self.version == Version::ONE {
@@ -1121,7 +1145,7 @@ impl Encodable for Transaction {
 }
 
 impl Decodable for Transaction {
-    fn consensus_decode_from_finite_reader<R: io::Read + ?Sized>(
+    fn consensus_decode_from_finite_reader<R: Read + ?Sized>(
         r: &mut R,
     ) -> Result<Self, encode::Error> {
         let version = Version::consensus_decode_from_finite_reader(r)?;
@@ -1961,7 +1985,8 @@ mod tests {
         let mut witness: Vec<_> = spending.input[1].witness.to_vec();
         witness[0][10] = 42;
         spending.input[1].witness = Witness::from_slice(&witness);
-        match spending
+
+        let error = spending
             .verify(|point: &OutPoint| {
                 if let Some(tx) = spent3.remove(&point.txid) {
                     return tx.output.get(point.vout as usize).cloned();
@@ -1969,8 +1994,9 @@ mod tests {
                 None
             })
             .err()
-            .unwrap()
-        {
+            .unwrap();
+
+        match error {
             TxVerifyError::ScriptVerification(_) => {}
             _ => panic!("Wrong error type"),
         }
