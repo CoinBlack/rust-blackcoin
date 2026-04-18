@@ -925,6 +925,7 @@ impl<R: Borrow<Transaction>> SighashCache<R> {
             // Build tx to sign
             let mut tx = Transaction {
                 version: self_.version,
+                time: self_.time,
                 lock_time: self_.lock_time,
                 input: vec![],
                 output: vec![],
@@ -1351,7 +1352,7 @@ impl<E> EncodeSigningDataResult<E> {
     /// # let input_index = 0;
     /// # let script_pubkey = bitcoin::ScriptBuf::new();
     /// # let sighash_u32 = 0u32;
-    /// # const SOME_TX: &'static str = "0100000001a15d57094aa7a21a28cb20b59aab8fc7d1149a3bdbcddba9c622e4f5f6a99ece010000006c493046022100f93bb0e7d8db7bd46e40132d1f8242026e045f03a0efe71bbb8e3f475e970d790221009337cd7f1f929f00cc6ff01f03729b069a7c21b59b1736ddfee5db5946c5da8c0121033b9b137ee87d5a812d6f506efdd37f0affa7ffc310711c06c7f3e097c9447c52ffffffff0100e1f505000000001976a9140389035a9225b3839e2bbf32d826a1e222031fd888ac00000000";
+    /// # const SOME_TX: &'static str = "010000001c0d666501a381bf0282d770c0267a9901beef8f9cccf56857fb1faec4898de92f8d8502da000000006b483045022100cf2efb0252bd40d2e7c072be19e8ce2f78615ec6688c2b026f1bbfc37c64253502202c356fb9fd6b9736094667342c594e4c98eae1a2935e8ee1a7d32de93b8ebd890121033356d9b2f41ebfbbc9b9c43b58af5365b6bb821ff93867047f4c396c1a7f7276ffffffff02f6182300000000001976a914ca1e04745e8ca0c60d8c5881531d51bec470743f88ac6a9d1e25050000001976a914c0f212680244cdbd04507a9df77f1abee14d820388ac1c0d6665";
     /// # let raw_tx = Vec::from_hex(SOME_TX).unwrap();
     /// # let tx: Transaction = deserialize(&raw_tx).unwrap();
     /// let cache = SighashCache::new(&tx);
@@ -1457,7 +1458,8 @@ mod tests {
 
         // We need a tx with more inputs than outputs.
         let tx = Transaction {
-            version: transaction::Version::ONE,
+            version: transaction::Version::TWO,
+            time: 0,
             lock_time: absolute::LockTime::ZERO,
             input: vec![TxIn::default(), TxIn::default()],
             output: vec![TxOut::NULL],
@@ -1647,6 +1649,7 @@ mod tests {
 
         let dumb_tx = Transaction {
             version: transaction::Version::TWO,
+            time: 0,
             lock_time: absolute::LockTime::ZERO,
             input: vec![TxIn::default()],
             output: vec![],
@@ -1993,7 +1996,7 @@ mod tests {
     fn bip143_p2wpkh() {
         let tx = deserialize::<Transaction>(
             &hex!(
-                "0100000002fff7f7881a8099afa6940d42d1e7f6362bec38171ea3edf433541db4e4ad969f000000\
+                "010000000000000002fff7f7881a8099afa6940d42d1e7f6362bec38171ea3edf433541db4e4ad969f000000\
                 0000eeffffffef51e1b804cc89d182d279655c3aa89e815b1b309fe287d9b2b55d57b90ec68a01000000\
                 00ffffffff02202cb206000000001976a9148280b37df378db99f66f85c95a783a76ac7a6d5988ac9093\
                 510d000000001976a9143bde42dbee7e4dbe6a21b2d50ce2f0167faa815988ac11000000"
@@ -2034,7 +2037,7 @@ mod tests {
     fn bip143_p2wpkh_nested_in_p2sh() {
         let tx = deserialize::<Transaction>(
             &hex!(
-                "0100000001db6b1b20aa0fd7b23880be2ecbd4a98130974cf4748fb66092ac4d3ceb1a5477010000\
+                "010000000000000001db6b1b20aa0fd7b23880be2ecbd4a98130974cf4748fb66092ac4d3ceb1a5477010000\
                 0000feffffff02b8b4eb0b000000001976a914a457b684d7f0d539a46a45bbc043f35b59d0d96388ac00\
                 08af2f000000001976a914fd270b1ee6abcaea97fea7ad0402e8bd8ad6d77c88ac92040000"
             ),
@@ -2076,7 +2079,7 @@ mod tests {
     // encode a script.
     fn bip143_p2wsh_nested_in_p2sh_data() -> (Transaction, ScriptBuf, Amount) {
         let tx = deserialize::<Transaction>(&hex!(
-            "010000000136641869ca081e70f394c6948e8af409e18b619df2ed74aa106c1ca29787b96e0100000000\
+            "01000000000000000136641869ca081e70f394c6948e8af409e18b619df2ed74aa106c1ca29787b96e0100000000\
              ffffffff0200e9a435000000001976a914389ffce9cd9ae88dcc0631e88a821ffdbe9bfe2688acc0832f\
              05000000001976a9147480a33f950689af511e6e84c138dbbd3c3ee41588ac00000000"
         ))

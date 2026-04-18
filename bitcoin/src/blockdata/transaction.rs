@@ -381,12 +381,15 @@ impl Sequence {
     #[inline]
     pub fn is_final(&self) -> bool { !self.enables_absolute_lock_time() }
 
+    // Blackcoin
+    /*
     /// Returns true if the transaction opted-in to BIP125 replace-by-fee.
     ///
     /// Replace by fee is signaled by the sequence being less than 0xfffffffe which is checked by
     /// this method. Note, this is the highest "non-final" value (see [`Sequence::is_final`]).
     #[inline]
     pub fn is_rbf(&self) -> bool { *self < Sequence::MIN_NO_RBF }
+    */
 
     /// Returns `true` if the sequence has a relative lock-time.
     #[inline]
@@ -633,6 +636,11 @@ impl TxOut {
     pub fn minimal_non_dust_custom(script_pubkey: ScriptBuf, dust_relay_fee: FeeRate) -> Self {
         TxOut { value: script_pubkey.minimal_non_dust_custom(dust_relay_fee), script_pubkey }
     }
+
+    /// Blackcoin: used for identifying coinstake transactions.
+    pub fn is_empty(&self) -> bool {
+        self.value == Amount::ZERO && self.script_pubkey.is_empty()
+    }
 }
 
 /// Returns the total number of bytes that this script pubkey would contribute to a transaction.
@@ -702,6 +710,8 @@ fn size_from_script_pubkey(script_pubkey: &Script) -> usize {
 pub struct Transaction {
     /// The protocol version, is currently expected to be 1 or 2 (BIP 68).
     pub version: Version,
+    /// Transaction timestamp.
+    pub time: u32,
     /// Block height or timestamp. Transaction cannot be included in a block until this height/time.
     ///
     /// ### Relevant BIPs
@@ -722,6 +732,7 @@ impl cmp::Ord for Transaction {
     fn cmp(&self, other: &Self) -> cmp::Ordering {
         self.version
             .cmp(&other.version)
+            .then(self.time.cmp(&other.time))
             .then(self.lock_time.to_consensus_u32().cmp(&other.lock_time.to_consensus_u32()))
             .then(self.input.cmp(&other.input))
             .then(self.output.cmp(&other.output))
@@ -750,6 +761,7 @@ impl Transaction {
     pub fn compute_ntxid(&self) -> sha256d::Hash {
         let cloned_tx = Transaction {
             version: self.version,
+            time: self.time,
             lock_time: self.lock_time,
             input: self
                 .input
@@ -783,6 +795,7 @@ impl Transaction {
     pub fn compute_txid(&self) -> Txid {
         let mut enc = Txid::engine();
         self.version.consensus_encode(&mut enc).expect("engines don't error");
+        self.time.consensus_encode(&mut enc).expect("engines don't error");
         self.input.consensus_encode(&mut enc).expect("engines don't error");
         self.output.consensus_encode(&mut enc).expect("engines don't error");
         self.lock_time.consensus_encode(&mut enc).expect("engines don't error");
@@ -841,6 +854,10 @@ impl Transaction {
     pub fn base_size(&self) -> usize {
         let mut size: usize = 4; // Serialized length of a u32 for the version number.
 
+        if self.version == Version::ONE {
+            size += 4; // u32 for timestamp
+        }
+
         size += VarInt::from(self.input.len()).size();
         size += self.input.iter().map(|input| input.base_size()).sum::<usize>();
 
@@ -858,6 +875,11 @@ impl Transaction {
     pub fn total_size(&self) -> usize {
         let mut size: usize = 4; // Serialized length of a u32 for the version number.
         let uses_segwit = self.uses_segwit_serialization();
+
+        // Blackcoin: Add 4 bytes for timestamp in version 1 transactions
+        if self.version == Version::ONE {
+            size += 4; // u32 for timestamp
+        }
 
         if uses_segwit {
             size += 2; // 1 byte for the marker and 1 for the flag.
@@ -904,6 +926,19 @@ impl Transaction {
         self.input.len() == 1 && self.input[0].previous_output.is_null()
     }
 
+    /// Blackcoin: checks if this is a coinstake transaction.
+    ///
+    /// The second transaction in the proof-of-stake block is called the coinstake transaction.
+    pub fn is_coinstake(&self) -> bool {
+        !self.input.is_empty() && (!self.input[0].previous_output.is_null()) && self.output.len() >= 2 && self.output[0].is_empty()
+    }
+
+    /// Checks if this is a coinbase transaction.
+    #[deprecated(since = "0.31.0", note = "use is_coinbase instead")]
+    pub fn is_coin_base(&self) -> bool { self.is_coinbase() }
+
+    // Blackcoin
+    /*
     /// Returns `true` if the transaction itself opted in to be BIP-125-replaceable (RBF).
     ///
     /// # Warning
@@ -916,6 +951,7 @@ impl Transaction {
     pub fn is_explicitly_rbf(&self) -> bool {
         self.input.iter().any(|input| input.sequence.is_rbf())
     }
+    */
 
     /// Returns true if this [`Transaction`]'s absolute timelock is satisfied at `height`/`time`.
     ///
@@ -1247,6 +1283,9 @@ impl Encodable for Transaction {
     fn consensus_encode<W: Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
         let mut len = 0;
         len += self.version.consensus_encode(w)?;
+        if self.version == Version::ONE {
+            len += self.time.consensus_encode(w)?;
+        }
 
         // Legacy transaction serialization format only includes inputs and outputs.
         if !self.uses_segwit_serialization() {
@@ -1272,6 +1311,7 @@ impl Decodable for Transaction {
         r: &mut R,
     ) -> Result<Self, encode::Error> {
         let version = Version::consensus_decode_from_finite_reader(r)?;
+        let time = if version == Version::ONE { <u32>::consensus_decode_from_finite_reader(r)? } else { 0 };
         let input = Vec::<TxIn>::consensus_decode_from_finite_reader(r)?;
         // segwit
         if input.is_empty() {
@@ -1289,6 +1329,7 @@ impl Decodable for Transaction {
                     } else {
                         Ok(Transaction {
                             version,
+                            time,
                             input,
                             output,
                             lock_time: Decodable::consensus_decode_from_finite_reader(r)?,
@@ -1302,6 +1343,7 @@ impl Decodable for Transaction {
         } else {
             Ok(Transaction {
                 version,
+                time,
                 input,
                 output: Decodable::consensus_decode_from_finite_reader(r)?,
                 lock_time: Decodable::consensus_decode_from_finite_reader(r)?,
@@ -1666,7 +1708,8 @@ mod tests {
     use crate::consensus::encode::{deserialize, serialize};
     use crate::sighash::EcdsaSighashType;
 
-    const SOME_TX: &str = "0100000001a15d57094aa7a21a28cb20b59aab8fc7d1149a3bdbcddba9c622e4f5f6a99ece010000006c493046022100f93bb0e7d8db7bd46e40132d1f8242026e045f03a0efe71bbb8e3f475e970d790221009337cd7f1f929f00cc6ff01f03729b069a7c21b59b1736ddfee5db5946c5da8c0121033b9b137ee87d5a812d6f506efdd37f0affa7ffc310711c06c7f3e097c9447c52ffffffff0100e1f505000000001976a9140389035a9225b3839e2bbf32d826a1e222031fd888ac00000000";
+    // Blackcoin: non-segwit v1 transaction c630032792c86c5f76a1ff1cac60611fcd04d151de87e7260804676528e5db90
+    const SOME_TX: &str = "010000001c0d666501a381bf0282d770c0267a9901beef8f9cccf56857fb1faec4898de92f8d8502da000000006b483045022100cf2efb0252bd40d2e7c072be19e8ce2f78615ec6688c2b026f1bbfc37c64253502202c356fb9fd6b9736094667342c594e4c98eae1a2935e8ee1a7d32de93b8ebd890121033356d9b2f41ebfbbc9b9c43b58af5365b6bb821ff93867047f4c396c1a7f7276ffffffff02f6182300000000001976a914ca1e04745e8ca0c60d8c5881531d51bec470743f88ac6a9d1e25050000001976a914c0f212680244cdbd04507a9df77f1abee14d820388ac1c0d6665";
 
     #[test]
     fn encode_to_unsized_writer() {
@@ -1776,16 +1819,30 @@ mod tests {
         use crate::blockdata::constants;
         use crate::network::Network;
 
-        let genesis = constants::genesis_block(Network::Bitcoin);
+        let genesis = constants::genesis_block(&crate::consensus::params::MAINNET);
         assert!(genesis.txdata[0].is_coinbase());
-        let tx_bytes = hex!("0100000001a15d57094aa7a21a28cb20b59aab8fc7d1149a3bdbcddba9c622e4f5f6a99ece010000006c493046022100f93bb0e7d8db7bd46e40132d1f8242026e045f03a0efe71bbb8e3f475e970d790221009337cd7f1f929f00cc6ff01f03729b069a7c21b59b1736ddfee5db5946c5da8c0121033b9b137ee87d5a812d6f506efdd37f0affa7ffc310711c06c7f3e097c9447c52ffffffff0100e1f505000000001976a9140389035a9225b3839e2bbf32d826a1e222031fd888ac00000000");
+        let tx_bytes = hex!("010000001c0d666501a381bf0282d770c0267a9901beef8f9cccf56857fb1faec4898de92f8d8502da000000006b483045022100cf2efb0252bd40d2e7c072be19e8ce2f78615ec6688c2b026f1bbfc37c64253502202c356fb9fd6b9736094667342c594e4c98eae1a2935e8ee1a7d32de93b8ebd890121033356d9b2f41ebfbbc9b9c43b58af5365b6bb821ff93867047f4c396c1a7f7276ffffffff02f6182300000000001976a914ca1e04745e8ca0c60d8c5881531d51bec470743f88ac6a9d1e25050000001976a914c0f212680244cdbd04507a9df77f1abee14d820388ac1c0d6665");
         let tx: Transaction = deserialize(&tx_bytes).unwrap();
         assert!(!tx.is_coinbase());
     }
 
     #[test]
+    fn is_coinstake() {
+        use crate::Block;
+        let block = hex!("000000208fd474892cdbbf970f2ede236d58d219bda031514ef99cfa4b8e2233a62e867af1ae45c5481e60b9de6d252d53b7a355adfb63170e4a03279f0b0ef0e6e4f177705687625ebe151a00000000020100000070568762010000000000000000000000000000000000000000000000000000000000000000ffffffff050300093d00ffffffff010000000000000000000000000001000000705687620187f6d5c94707d4d8807e9fc827d3e15be2ff488f979e409178a46721a9ffcbf90100000049483045022100a1c1cc2bb17d77bf96ea4a28986420199c439e3ab2373580a22ff327ae2b9a0902203e9934e01436199d26b6af4e925d82b62706ce6392d119d8aab4b498a06856d101ffffffff0200000000000000000000165e61110000002321021ad814d1d18b9f7d49e47d7ce2a0beda0b48dc768ca9ce51050a606da7bc06c9ac00000000473045022100c8064e2ffefecc99b09305981cf0697609a9a2a492f1e4ad4795df9bc9cf9ec602200433d204dcd0348267466a7bea29571d441ee931550ccc6f26792f42eb3a378e");
+        let decode: Result<Block, _> = deserialize(&block);
+        assert!(decode.is_ok());
+        let real_decode = decode.unwrap();
+        assert!(real_decode.txdata[1].is_coinstake());
+
+        let tx_bytes = hex!("010000001c0d666501a381bf0282d770c0267a9901beef8f9cccf56857fb1faec4898de92f8d8502da000000006b483045022100cf2efb0252bd40d2e7c072be19e8ce2f78615ec6688c2b026f1bbfc37c64253502202c356fb9fd6b9736094667342c594e4c98eae1a2935e8ee1a7d32de93b8ebd890121033356d9b2f41ebfbbc9b9c43b58af5365b6bb821ff93867047f4c396c1a7f7276ffffffff02f6182300000000001976a914ca1e04745e8ca0c60d8c5881531d51bec470743f88ac6a9d1e25050000001976a914c0f212680244cdbd04507a9df77f1abee14d820388ac1c0d6665");
+        let tx: Transaction = deserialize(&tx_bytes).unwrap();
+        assert!(!tx.is_coinstake());
+    }
+
+    #[test]
     fn nonsegwit_transaction() {
-        let tx_bytes = hex!("0100000001a15d57094aa7a21a28cb20b59aab8fc7d1149a3bdbcddba9c622e4f5f6a99ece010000006c493046022100f93bb0e7d8db7bd46e40132d1f8242026e045f03a0efe71bbb8e3f475e970d790221009337cd7f1f929f00cc6ff01f03729b069a7c21b59b1736ddfee5db5946c5da8c0121033b9b137ee87d5a812d6f506efdd37f0affa7ffc310711c06c7f3e097c9447c52ffffffff0100e1f505000000001976a9140389035a9225b3839e2bbf32d826a1e222031fd888ac00000000");
+        let tx_bytes = hex!("010000001c0d666501a381bf0282d770c0267a9901beef8f9cccf56857fb1faec4898de92f8d8502da000000006b483045022100cf2efb0252bd40d2e7c072be19e8ce2f78615ec6688c2b026f1bbfc37c64253502202c356fb9fd6b9736094667342c594e4c98eae1a2935e8ee1a7d32de93b8ebd890121033356d9b2f41ebfbbc9b9c43b58af5365b6bb821ff93867047f4c396c1a7f7276ffffffff02f6182300000000001976a914ca1e04745e8ca0c60d8c5881531d51bec470743f88ac6a9d1e25050000001976a914c0f212680244cdbd04507a9df77f1abee14d820388ac1c0d6665");
         let tx: Result<Transaction, _> = deserialize(&tx_bytes);
         assert!(tx.is_ok());
         let realtx = tx.unwrap();
@@ -1797,19 +1854,19 @@ mod tests {
         // as little-endian 256-bit numbers rather than as data strings.
         assert_eq!(
             format!("{:x}", realtx.input[0].previous_output.txid),
-            "ce9ea9f6f5e422c6a9dbcddb3b9a14d1c78fab9ab520cb281aa2a74a09575da1".to_string()
+            "da02858d2fe98d89c4ae1ffb5768f5cc9c8fefbe01997a26c070d78202bf81a3".to_string()
         );
-        assert_eq!(realtx.input[0].previous_output.vout, 1);
-        assert_eq!(realtx.output.len(), 1);
-        assert_eq!(realtx.lock_time, absolute::LockTime::ZERO);
+        assert_eq!(realtx.input[0].previous_output.vout, 0);
+        assert_eq!(realtx.output.len(), 2);
+        assert_eq!(realtx.lock_time, absolute::LockTime::from_time(1701186844).unwrap());
 
         assert_eq!(
             format!("{:x}", realtx.compute_txid()),
-            "a6eab3c14ab5272a58a5ba91505ba1a4b6d7a3a9fcbd187b6cd99a7b6d548cb7".to_string()
+            "c630032792c86c5f76a1ff1cac60611fcd04d151de87e7260804676528e5db90".to_string()
         );
         assert_eq!(
             format!("{:x}", realtx.compute_wtxid()),
-            "a6eab3c14ab5272a58a5ba91505ba1a4b6d7a3a9fcbd187b6cd99a7b6d548cb7".to_string()
+            "c630032792c86c5f76a1ff1cac60611fcd04d151de87e7260804676528e5db90".to_string()
         );
         assert_eq!(realtx.weight().to_wu() as usize, tx_bytes.len() * WITNESS_SCALE_FACTOR);
         assert_eq!(realtx.total_size(), tx_bytes.len());
@@ -1879,7 +1936,7 @@ mod tests {
     #[test]
     fn consensus_serde() {
         use crate::consensus::serde as con_serde;
-        let json = "\"010000000001010000000000000000000000000000000000000000000000000000000000000000ffffffff3603da1b0e00045503bd5704c7dd8a0d0ced13bb5785010800000000000a636b706f6f6c122f4e696e6a61506f6f6c2f5345475749542fffffffff02b4e5a212000000001976a914876fbb82ec05caa6af7a3b5e5a983aae6c6cc6d688ac0000000000000000266a24aa21a9edf91c46b49eb8a29089980f02ee6b57e7d63d33b18b4fddac2bcd7db2a39837040120000000000000000000000000000000000000000000000000000000000000000000000000\"";
+        let json = "\"01000000000000000001010000000000000000000000000000000000000000000000000000000000000000ffffffff3603da1b0e00045503bd5704c7dd8a0d0ced13bb5785010800000000000a636b706f6f6c122f4e696e6a61506f6f6c2f5345475749542fffffffff02b4e5a212000000001976a914876fbb82ec05caa6af7a3b5e5a983aae6c6cc6d688ac0000000000000000266a24aa21a9edf91c46b49eb8a29089980f02ee6b57e7d63d33b18b4fddac2bcd7db2a39837040120000000000000000000000000000000000000000000000000000000000000000000000000\"";
         let mut deserializer = serde_json::Deserializer::from_str(json);
         let tx =
             con_serde::With::<con_serde::Hex>::deserialize::<'_, Transaction, _>(&mut deserializer)
@@ -1911,7 +1968,7 @@ mod tests {
     #[test]
     fn tx_no_input_deserialization() {
         let tx_bytes = hex!(
-            "010000000001000100e1f505000000001976a9140389035a9225b3839e2bbf32d826a1e222031fd888ac00000000"
+            "010000001c0d66650001000100e1f505000000001976a9140389035a9225b3839e2bbf32d826a1e222031fd888ac00000000"
         );
         let tx: Transaction = deserialize(&tx_bytes).expect("deserialize tx");
 
@@ -1924,13 +1981,13 @@ mod tests {
 
     #[test]
     fn ntxid() {
-        let tx_bytes = hex!("0100000001a15d57094aa7a21a28cb20b59aab8fc7d1149a3bdbcddba9c622e4f5f6a99ece010000006c493046022100f93bb0e7d8db7bd46e40132d1f8242026e045f03a0efe71bbb8e3f475e970d790221009337cd7f1f929f00cc6ff01f03729b069a7c21b59b1736ddfee5db5946c5da8c0121033b9b137ee87d5a812d6f506efdd37f0affa7ffc310711c06c7f3e097c9447c52ffffffff0100e1f505000000001976a9140389035a9225b3839e2bbf32d826a1e222031fd888ac00000000");
+        let tx_bytes = hex!("010000001c0d666501a381bf0282d770c0267a9901beef8f9cccf56857fb1faec4898de92f8d8502da000000006b483045022100cf2efb0252bd40d2e7c072be19e8ce2f78615ec6688c2b026f1bbfc37c64253502202c356fb9fd6b9736094667342c594e4c98eae1a2935e8ee1a7d32de93b8ebd890121033356d9b2f41ebfbbc9b9c43b58af5365b6bb821ff93867047f4c396c1a7f7276ffffffff02f6182300000000001976a914ca1e04745e8ca0c60d8c5881531d51bec470743f88ac6a9d1e25050000001976a914c0f212680244cdbd04507a9df77f1abee14d820388ac1c0d6665");
         let mut tx: Transaction = deserialize(&tx_bytes).unwrap();
 
         let old_ntxid = tx.compute_ntxid();
         assert_eq!(
             format!("{:x}", old_ntxid),
-            "c3573dbea28ce24425c59a189391937e00d255150fa973d59d61caf3a06b601d"
+            "6abc7bc0890ea8411bf3323229124fa77ad11c0aecf6fa18c503775cb1def8bb"
         );
         // changing sigs does not affect it
         tx.input[0].script_sig = ScriptBuf::new();
@@ -2010,7 +2067,7 @@ mod tests {
     #[test]
     #[cfg(feature = "serde")]
     fn txn_encode_decode() {
-        let tx_bytes = hex!("0100000001a15d57094aa7a21a28cb20b59aab8fc7d1149a3bdbcddba9c622e4f5f6a99ece010000006c493046022100f93bb0e7d8db7bd46e40132d1f8242026e045f03a0efe71bbb8e3f475e970d790221009337cd7f1f929f00cc6ff01f03729b069a7c21b59b1736ddfee5db5946c5da8c0121033b9b137ee87d5a812d6f506efdd37f0affa7ffc310711c06c7f3e097c9447c52ffffffff0100e1f505000000001976a9140389035a9225b3839e2bbf32d826a1e222031fd888ac00000000");
+        let tx_bytes = hex!("010000001c0d666501a381bf0282d770c0267a9901beef8f9cccf56857fb1faec4898de92f8d8502da000000006b483045022100cf2efb0252bd40d2e7c072be19e8ce2f78615ec6688c2b026f1bbfc37c64253502202c356fb9fd6b9736094667342c594e4c98eae1a2935e8ee1a7d32de93b8ebd890121033356d9b2f41ebfbbc9b9c43b58af5365b6bb821ff93867047f4c396c1a7f7276ffffffff02f6182300000000001976a914ca1e04745e8ca0c60d8c5881531d51bec470743f88ac6a9d1e25050000001976a914c0f212680244cdbd04507a9df77f1abee14d820388ac1c0d6665");
         let tx: Transaction = deserialize(&tx_bytes).unwrap();
         serde_round_trip!(tx);
     }
@@ -2140,21 +2197,26 @@ mod tests {
     #[test]
     fn sequence_number() {
         let seq_final = Sequence::from_consensus(0xFFFFFFFF);
-        let seq_non_rbf = Sequence::from_consensus(0xFFFFFFFE);
+        // Blackcoin
+        // let seq_non_rbf = Sequence::from_consensus(0xFFFFFFFE);
         let block_time_lock = Sequence::from_consensus(0xFFFF);
         let unit_time_lock = Sequence::from_consensus(0x40FFFF);
         let lock_time_disabled = Sequence::from_consensus(0x80000000);
 
         assert!(seq_final.is_final());
-        assert!(!seq_final.is_rbf());
+        // Blackcoin
+        // assert!(!seq_final.is_rbf());
         assert!(!seq_final.is_relative_lock_time());
-        assert!(!seq_non_rbf.is_rbf());
+        // Blackcoin
+        // assert!(!seq_non_rbf.is_rbf());
         assert!(block_time_lock.is_relative_lock_time());
         assert!(block_time_lock.is_height_locked());
-        assert!(block_time_lock.is_rbf());
+        // Blackcoin
+        // assert!(block_time_lock.is_rbf());
         assert!(unit_time_lock.is_relative_lock_time());
         assert!(unit_time_lock.is_time_locked());
-        assert!(unit_time_lock.is_rbf());
+        // Blackcoin
+        // assert!(unit_time_lock.is_rbf());
         assert!(!lock_time_disabled.is_relative_lock_time());
     }
 
@@ -2227,19 +2289,20 @@ mod tests {
                 // one segwit input (P2WPKH)
                 (true, "020000000001018a763b78d3e17acea0625bf9e52b0dc1beb2241b2502185348ba8ff4a253176e0100000000ffffffff0280d725000000000017a914c07ed639bd46bf7087f2ae1dfde63b815a5f8b488767fda20300000000160014869ec8520fa2801c8a01bfdd2e82b19833cd0daf02473044022016243edad96b18c78b545325aaff80131689f681079fb107a67018cb7fb7830e02205520dae761d89728f73f1a7182157f6b5aecf653525855adb7ccb998c8e6143b012103b9489bde92afbcfa85129a82ffa512897105d1a27ad9806bded27e0532fc84e700000000", Weight::from_wu(565)),
                 // one segwit input (P2WSH)
-                (true, "01000000000101a3ccad197118a2d4975fadc47b90eacfdeaf8268adfdf10ed3b4c3b7e1ad14530300000000ffffffff0200cc5501000000001976a91428ec6f21f4727bff84bb844e9697366feeb69f4d88aca2a5100d00000000220020701a8d401c84fb13e6baf169d59684e17abd9fa216c8cc5b9fc63d622ff8c58d04004730440220548f11130353b3a8f943d2f14260345fc7c20bde91704c9f1cbb5456355078cd0220383ed4ed39b079b618bcb279bbc1f2ca18cb028c4641cb522c9c5868c52a0dc20147304402203c332ecccb3181ca82c0600520ee51fee80d3b4a6ab110945e59475ec71e44ac0220679a11f3ca9993b04ccebda3c834876f353b065bb08f50076b25f5bb93c72ae1016952210375e00eb72e29da82b89367947f29ef34afb75e8654f6ea368e0acdfd92976b7c2103a1b26313f430c4b15bb1fdce663207659d8cac749a0e53d70eff01874496feff2103c96d495bfdd5ba4145e3e046fee45e84a8a48ad05bd8dbb395c011a32cf9f88053ae00000000", Weight::from_wu(766)),
+                (true, "02000000000101a3ccad197118a2d4975fadc47b90eacfdeaf8268adfdf10ed3b4c3b7e1ad14530300000000ffffffff0200cc5501000000001976a91428ec6f21f4727bff84bb844e9697366feeb69f4d88aca2a5100d00000000220020701a8d401c84fb13e6baf169d59684e17abd9fa216c8cc5b9fc63d622ff8c58d04004730440220548f11130353b3a8f943d2f14260345fc7c20bde91704c9f1cbb5456355078cd0220383ed4ed39b079b618bcb279bbc1f2ca18cb028c4641cb522c9c5868c52a0dc20147304402203c332ecccb3181ca82c0600520ee51fee80d3b4a6ab110945e59475ec71e44ac0220679a11f3ca9993b04ccebda3c834876f353b065bb08f50076b25f5bb93c72ae1016952210375e00eb72e29da82b89367947f29ef34afb75e8654f6ea368e0acdfd92976b7c2103a1b26313f430c4b15bb1fdce663207659d8cac749a0e53d70eff01874496feff2103c96d495bfdd5ba4145e3e046fee45e84a8a48ad05bd8dbb395c011a32cf9f88053ae00000000", Weight::from_wu(766)),
                 // one segwit input (P2WPKH) and two legacy inputs (P2PKH)
-                (true, "010000000001036b6b6ac7e34e97c53c1cc74c99c7948af2e6aac75d8778004ae458d813456764000000006a473044022001deec7d9075109306320b3754188f81a8236d0d232b44bc69f8309115638b8f02204e17a5194a519cf994d0afeea1268740bdc10616b031a521113681cc415e815c012103488d3272a9fad78ee887f0684cb8ebcfc06d0945e1401d002e590c7338b163feffffffffc75bd7aa6424aee972789ec28ba181254ee6d8311b058d165bd045154d7660b0000000006b483045022100c8641bcbee3e4c47a00417875015d8c5d5ea918fb7e96f18c6ffe51bc555b401022074e2c46f5b1109cd79e39a9aa203eadd1d75356415e51d80928a5fb5feb0efee0121033504b4c6dfc3a5daaf7c425aead4c2dbbe4e7387ce8e6be2648805939ecf7054ffffffff494df3b205cd9430a26f8e8c0dc0bb80496fbc555a524d6ea307724bc7e60eee0100000000ffffffff026d861500000000001976a9145c54ed1360072ebaf56e87693b88482d2c6a101588ace407000000000000160014761e31e2629c6e11936f2f9888179d60a5d4c1f900000247304402201fa38a67a63e58b67b6cfffd02f59121ca1c8a1b22e1efe2573ae7e4b4f06c2b022002b9b431b58f6e36b3334fb14eaecee7d2f06967a77ef50d8d5f90dda1057f0c01210257dc6ce3b1100903306f518ee8fa113d778e403f118c080b50ce079fba40e09a00000000", Weight::from_wu(1755)),
+                (true, "020000000001036b6b6ac7e34e97c53c1cc74c99c7948af2e6aac75d8778004ae458d813456764000000006a473044022001deec7d9075109306320b3754188f81a8236d0d232b44bc69f8309115638b8f02204e17a5194a519cf994d0afeea1268740bdc10616b031a521113681cc415e815c012103488d3272a9fad78ee887f0684cb8ebcfc06d0945e1401d002e590c7338b163feffffffffc75bd7aa6424aee972789ec28ba181254ee6d8311b058d165bd045154d7660b0000000006b483045022100c8641bcbee3e4c47a00417875015d8c5d5ea918fb7e96f18c6ffe51bc555b401022074e2c46f5b1109cd79e39a9aa203eadd1d75356415e51d80928a5fb5feb0efee0121033504b4c6dfc3a5daaf7c425aead4c2dbbe4e7387ce8e6be2648805939ecf7054ffffffff494df3b205cd9430a26f8e8c0dc0bb80496fbc555a524d6ea307724bc7e60eee0100000000ffffffff026d861500000000001976a9145c54ed1360072ebaf56e87693b88482d2c6a101588ace407000000000000160014761e31e2629c6e11936f2f9888179d60a5d4c1f900000247304402201fa38a67a63e58b67b6cfffd02f59121ca1c8a1b22e1efe2573ae7e4b4f06c2b022002b9b431b58f6e36b3334fb14eaecee7d2f06967a77ef50d8d5f90dda1057f0c01210257dc6ce3b1100903306f518ee8fa113d778e403f118c080b50ce079fba40e09a00000000", Weight::from_wu(1755)),
                 // three legacy inputs (P2PKH)
-                (false, "0100000003e4d7be4314204a239d8e00691128dca7927e19a7339c7948bde56f669d27d797010000006b483045022100b988a858e2982e2daaf0755b37ad46775d6132057934877a5badc91dee2f66ff022020b967c1a2f0916007662ec609987e951baafa6d4fda23faaad70715611d6a2501210254a2dccd8c8832d4677dc6f0e562eaaa5d11feb9f1de2c50a33832e7c6190796ffffffff9e22eb1b3f24c260187d716a8a6c2a7efb5af14a30a4792a6eeac3643172379c000000006a47304402207df07f0cd30dca2cf7bed7686fa78d8a37fe9c2254dfdca2befed54e06b779790220684417b8ff9f0f6b480546a9e90ecee86a625b3ea1e4ca29b080da6bd6c5f67e01210254a2dccd8c8832d4677dc6f0e562eaaa5d11feb9f1de2c50a33832e7c6190796ffffffff1123df3bfb503b59769731da103d4371bc029f57979ebce68067768b958091a1000000006a47304402207a016023c2b0c4db9a7d4f9232fcec2193c2f119a69125ad5bcedcba56dd525e02206a734b3a321286c896759ac98ebfd9d808df47f1ce1fbfbe949891cc3134294701210254a2dccd8c8832d4677dc6f0e562eaaa5d11feb9f1de2c50a33832e7c6190796ffffffff0200c2eb0b000000001976a914e5eb3e05efad136b1405f5c2f9adb14e15a35bb488ac88cfff1b000000001976a9144846db516db3130b7a3c92253599edec6bc9630b88ac00000000", Weight::from_wu(2080)),
+                (false, "0200000003e4d7be4314204a239d8e00691128dca7927e19a7339c7948bde56f669d27d797010000006b483045022100b988a858e2982e2daaf0755b37ad46775d6132057934877a5badc91dee2f66ff022020b967c1a2f0916007662ec609987e951baafa6d4fda23faaad70715611d6a2501210254a2dccd8c8832d4677dc6f0e562eaaa5d11feb9f1de2c50a33832e7c6190796ffffffff9e22eb1b3f24c260187d716a8a6c2a7efb5af14a30a4792a6eeac3643172379c000000006a47304402207df07f0cd30dca2cf7bed7686fa78d8a37fe9c2254dfdca2befed54e06b779790220684417b8ff9f0f6b480546a9e90ecee86a625b3ea1e4ca29b080da6bd6c5f67e01210254a2dccd8c8832d4677dc6f0e562eaaa5d11feb9f1de2c50a33832e7c6190796ffffffff1123df3bfb503b59769731da103d4371bc029f57979ebce68067768b958091a1000000006a47304402207a016023c2b0c4db9a7d4f9232fcec2193c2f119a69125ad5bcedcba56dd525e02206a734b3a321286c896759ac98ebfd9d808df47f1ce1fbfbe949891cc3134294701210254a2dccd8c8832d4677dc6f0e562eaaa5d11feb9f1de2c50a33832e7c6190796ffffffff0200c2eb0b000000001976a914e5eb3e05efad136b1405f5c2f9adb14e15a35bb488ac88cfff1b000000001976a9144846db516db3130b7a3c92253599edec6bc9630b88ac00000000", Weight::from_wu(2080)),
                 // one segwit input (P2TR)
-                (true, "01000000000101b5cee87f1a60915c38bb0bc26aaf2b67be2b890bbc54bb4be1e40272e0d2fe0b0000000000ffffffff025529000000000000225120106daad8a5cb2e6fc74783714273bad554a148ca2d054e7a19250e9935366f3033760000000000002200205e6d83c44f57484fd2ef2a62b6d36cdcd6b3e06b661e33fd65588a28ad0dbe060141df9d1bfce71f90d68bf9e9461910b3716466bfe035c7dbabaa7791383af6c7ef405a3a1f481488a91d33cd90b098d13cb904323a3e215523aceaa04e1bb35cdb0100000000", Weight::from_wu(617)),
+                (true, "02000000000101b5cee87f1a60915c38bb0bc26aaf2b67be2b890bbc54bb4be1e40272e0d2fe0b0000000000ffffffff025529000000000000225120106daad8a5cb2e6fc74783714273bad554a148ca2d054e7a19250e9935366f3033760000000000002200205e6d83c44f57484fd2ef2a62b6d36cdcd6b3e06b661e33fd65588a28ad0dbe060141df9d1bfce71f90d68bf9e9461910b3716466bfe035c7dbabaa7791383af6c7ef405a3a1f481488a91d33cd90b098d13cb904323a3e215523aceaa04e1bb35cdb0100000000", Weight::from_wu(617)),
                 // one legacy input (P2PKH)
-                (false, "0100000001c336895d9fa674f8b1e294fd006b1ac8266939161600e04788c515089991b50a030000006a47304402204213769e823984b31dcb7104f2c99279e74249eacd4246dabcf2575f85b365aa02200c3ee89c84344ae326b637101a92448664a8d39a009c8ad5d147c752cbe112970121028b1b44b4903c9103c07d5a23e3c7cf7aeb0ba45ddbd2cfdce469ab197381f195fdffffff040000000000000000536a4c5058325bb7b7251cf9e36cac35d691bd37431eeea426d42cbdecca4db20794f9a4030e6cb5211fabf887642bcad98c9994430facb712da8ae5e12c9ae5ff314127d33665000bb26c0067000bb0bf00322a50c300000000000017a9145ca04fdc0a6d2f4e3f67cfeb97e438bb6287725f8750c30000000000001976a91423086a767de0143523e818d4273ddfe6d9e4bbcc88acc8465003000000001976a914c95cbacc416f757c65c942f9b6b8a20038b9b12988ac00000000", Weight::from_wu(1396)),
+                (false, "0200000001c336895d9fa674f8b1e294fd006b1ac8266939161600e04788c515089991b50a030000006a47304402204213769e823984b31dcb7104f2c99279e74249eacd4246dabcf2575f85b365aa02200c3ee89c84344ae326b637101a92448664a8d39a009c8ad5d147c752cbe112970121028b1b44b4903c9103c07d5a23e3c7cf7aeb0ba45ddbd2cfdce469ab197381f195fdffffff040000000000000000536a4c5058325bb7b7251cf9e36cac35d691bd37431eeea426d42cbdecca4db20794f9a4030e6cb5211fabf887642bcad98c9994430facb712da8ae5e12c9ae5ff314127d33665000bb26c0067000bb0bf00322a50c300000000000017a9145ca04fdc0a6d2f4e3f67cfeb97e438bb6287725f8750c30000000000001976a91423086a767de0143523e818d4273ddfe6d9e4bbcc88acc8465003000000001976a914c95cbacc416f757c65c942f9b6b8a20038b9b12988ac00000000", Weight::from_wu(1396)),
             ];
 
         let empty_transaction_weight = Transaction {
             version: Version::TWO,
+            time: 0,
             lock_time: absolute::LockTime::ZERO,
             input: vec![],
             output: vec![],
@@ -2294,7 +2357,7 @@ mod tests {
             ),
             // 8 sigops (P2WSH 3-of-4 MS (4) in + P2WSH out + P2PKH out (1x4))
             (
-                "01000000000101e70d7b4d957122909a665070b0c5bbb693982d09e4e66b9e6b7a8390\
+                "02000000000101e70d7b4d957122909a665070b0c5bbb693982d09e4e66b9e6b7a8390\
                 ce65ef1f0100000000ffffffff02095f2b0000000000220020800a016ea57a08f30c273\
                 ae7624f8f91c505ccbd3043829349533f317168248c52594500000000001976a914607f\
                 643372477c044c6d40b814288e40832a602688ac05004730440220282943649e687b5a3\
@@ -2314,7 +2377,7 @@ mod tests {
             ),
             // 5 sigops (P2SH-P2WPKH in (1), 2 P2SH outs (0), 1 P2PKH out (1x4))
             (
-                "010000000001018aec7e0729ba5a2d284303c89b3f397e92d54472a225d28eb0ae2fa6\
+                "020000000001018aec7e0729ba5a2d284303c89b3f397e92d54472a225d28eb0ae2fa6\
                 5a7d1a2e02000000171600145ad5db65f313ab76726eb178c2fd8f21f977838dfdfffff\
                 f03102700000000000017a914dca89e03ba124c2c70e55533f91100f2d9dab04587f2d7\
                 1d00000000001976a91442a34f4b0a65bc81278b665d37fd15910d261ec588ac292c3b0\
@@ -2328,7 +2391,7 @@ mod tests {
             ),
             // 12 sigops (1 P2SH 2-of-3 MS in (3x4), P2SH outs (0))
             (
-                "010000000115fe9ec3dc964e41f5267ea26cfe505f202bf3b292627496b04bece84da9\
+                "020000000115fe9ec3dc964e41f5267ea26cfe505f202bf3b292627496b04bece84da9\
                 b18903000000fc004730440220442827f1085364bda58c5884cee7b289934083362db6d\
                 fb627dc46f6cdbf5793022078cfa524252c381f2a572f0c41486e2838ca94aa268f2384\
                 d0e515744bf0e1e9014730440220160e49536bb29a49c7626744ee83150174c22fa40d5\
@@ -2345,7 +2408,7 @@ mod tests {
             ),
             // 3 sigops (1 P2SH-P2WSH 2-of-3 MS in (3), P2SH + P2WSH outs (0))
             (
-                "0100000000010117a31277a8ba3957be351fe4cffd080e05e07f9ee1594d638f55dd7d\
+                "0200000000010117a31277a8ba3957be351fe4cffd080e05e07f9ee1594d638f55dd7d\
                 707a983c01000000232200203a33fc9628c29f36a492d9fd811fd20231fbd563f7863e7\
                 9c4dc0ed34ea84b15ffffffff033bed03000000000017a914fb00d9a49663fd8ae84339\
                 8ae81299a1941fb8d287429404000000000017a9148fe08d81882a339cf913281eca8af\
@@ -2364,7 +2427,7 @@ mod tests {
             ),
             // 80 sigops (1 P2PKH ins (0), 1 BARE MS outs (20x4))
             (
-                "0100000001628c1726fecd23331ae9ff2872341b82d2c03180aa64f9bceefe457448db\
+                "0200000001628c1726fecd23331ae9ff2872341b82d2c03180aa64f9bceefe457448db\
                 e579020000006a47304402204799581a5b34ae5adca21ef22c55dbfcee58527127c95d0\
                 1413820fe7556ed970220391565b24dc47ce57fe56bf029792f821a392cdb5a3d45ed85\
                 c158997e7421390121037b2fb5b602e51c493acf4bf2d2423bcf63a09b3b99dfb7bd3c8\
@@ -2417,7 +2480,7 @@ mod tests {
     fn weight_predictions() {
         // TXID 3d3381f968e3a73841cba5e73bf47dcea9f25a9f7663c51c81f1db8229a309a0
         let tx_raw = hex!(
-            "01000000000103fc9aa70afba04da865f9821734b556cca9fb5710\
+            "02000000000103fc9aa70afba04da865f9821734b556cca9fb5710\
              fc1338b97fba811033f755e308000000000000000019b37457784d\
              d04936f011f733b8016c247a9ef08d40007a54a5159d1fc62ee216\
              00000000000000004c4f2937c6ccf8256d9711a19df1ae62172297\
@@ -2502,7 +2565,7 @@ mod benches {
     use super::Transaction;
     use crate::consensus::{deserialize, Encodable};
 
-    const SOME_TX: &str = "0100000001a15d57094aa7a21a28cb20b59aab8fc7d1149a3bdbcddba9c622e4f5f6a99ece010000006c493046022100f93bb0e7d8db7bd46e40132d1f8242026e045f03a0efe71bbb8e3f475e970d790221009337cd7f1f929f00cc6ff01f03729b069a7c21b59b1736ddfee5db5946c5da8c0121033b9b137ee87d5a812d6f506efdd37f0affa7ffc310711c06c7f3e097c9447c52ffffffff0100e1f505000000001976a9140389035a9225b3839e2bbf32d826a1e222031fd888ac00000000";
+    const SOME_TX: &str = "010000001c0d666501a381bf0282d770c0267a9901beef8f9cccf56857fb1faec4898de92f8d8502da000000006b483045022100cf2efb0252bd40d2e7c072be19e8ce2f78615ec6688c2b026f1bbfc37c64253502202c356fb9fd6b9736094667342c594e4c98eae1a2935e8ee1a7d32de93b8ebd890121033356d9b2f41ebfbbc9b9c43b58af5365b6bb821ff93867047f4c396c1a7f7276ffffffff02f6182300000000001976a914ca1e04745e8ca0c60d8c5881531d51bec470743f88ac6a9d1e25050000001976a914c0f212680244cdbd04507a9df77f1abee14d820388ac1c0d6665";
 
     #[bench]
     pub fn bench_transaction_size(bh: &mut Bencher) {
