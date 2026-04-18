@@ -862,7 +862,7 @@ impl TweakedKeypair {
 
     /// Returns the underlying key pair.
     #[inline]
-    pub fn to_inner(self) -> Keypair { self.0 }
+    pub fn to_keypair(self) -> Keypair { self.0 }
 
     /// Returns the [`TweakedPublicKey`] and its [`Parity`] for this [`TweakedKeypair`].
     #[inline]

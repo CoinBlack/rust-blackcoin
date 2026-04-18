@@ -442,7 +442,7 @@ impl Psbt {
                     let (msg, sighash_type) = self.sighash_taproot(input_index, cache, None)?;
                     let key_pair = Keypair::from_secret_key(secp, &sk.inner)
                         .tap_tweak(secp, input.tap_merkle_root)
-                        .to_inner();
+                        .to_keypair();
 
                     #[cfg(feature = "rand-std")]
                     let signature = secp.sign_schnorr(&msg, &key_pair);
@@ -730,6 +730,8 @@ pub enum KeyRequest {
     Pubkey(PublicKey),
     /// Request a private key using BIP-32 fingerprint and derivation path.
     Bip32(KeySource),
+    /// Request a private key using the associated x-only public key.
+    XOnlyPubkey(crate::XOnlyPublicKey),
 }
 
 /// Trait to get a private key from a key request, key is then used to sign an input.
@@ -760,6 +762,7 @@ impl GetKey for Xpriv {
     ) -> Result<Option<PrivateKey>, Self::Error> {
         match key_request {
             KeyRequest::Pubkey(_) => Err(GetKeyError::NotSupported),
+            KeyRequest::XOnlyPubkey(_) => Err(GetKeyError::NotSupported),
             KeyRequest::Bip32((fingerprint, path)) => {
                 let key = if self.fingerprint(secp) == fingerprint {
                     let k = self.derive_priv(secp, &path)?;
@@ -805,6 +808,7 @@ impl GetKey for $set<Xpriv> {
     ) -> Result<Option<PrivateKey>, Self::Error> {
         match key_request {
             KeyRequest::Pubkey(_) => Err(GetKeyError::NotSupported),
+            KeyRequest::XOnlyPubkey(_) => Err(GetKeyError::NotSupported),
             KeyRequest::Bip32((fingerprint, path)) => {
                 for xpriv in self.iter() {
                     if xpriv.parent_fingerprint == fingerprint {
@@ -835,6 +839,7 @@ impl GetKey for $map<PublicKey, PrivateKey> {
     ) -> Result<Option<PrivateKey>, Self::Error> {
         match key_request {
             KeyRequest::Pubkey(pk) => Ok(self.get(&pk).cloned()),
+            KeyRequest::XOnlyPubkey(_) => Err(GetKeyError::NotSupported),
             KeyRequest::Bip32(_) => Err(GetKeyError::NotSupported),
         }
     }
