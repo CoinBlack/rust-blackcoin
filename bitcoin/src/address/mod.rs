@@ -1044,7 +1044,7 @@ mod tests {
             (
                 "blk1qslnt20heyvy9zz8urgzp9rdvc0sm8e6q5qc98hrmn7wjsy2387rqp5kwms",
                 Some(AddressType::P2wsh),
-            ),
+            ), 
             (
                 "blk1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqvmswmg",
                 Some(AddressType::P2tr),
