@@ -1298,8 +1298,9 @@ impl fmt::Display for AnnexError {
 
         match *self {
             Empty => write!(f, "the annex is empty"),
-            IncorrectPrefix(byte) =>
-                write!(f, "incorrect prefix byte in the annex {:02x}, expecting 0x50", byte),
+            IncorrectPrefix(byte) => {
+                write!(f, "incorrect prefix byte in the annex {:02x}, expecting 0x50", byte)
+            }
         }
     }
 }
@@ -1507,6 +1508,15 @@ mod tests {
         let testdata = serde_json::from_str::<Value>(data).unwrap().as_array().unwrap().clone();
         for t in testdata.iter().skip(1) {
             let tx = t.get(0).unwrap().as_str().unwrap();
+            // These libbtc vectors carry random i32 versions. Under Blackcoin any transaction
+            // with version < 2 carries an nTime field that these Bitcoin-format vectors lack, so
+            // they are not valid Blackcoin transactions (and such versions never occur on the
+            // chain). Skip them; the version >= 2 vectors are valid Blackcoin serializations.
+            let raw = Vec::from_hex(tx).unwrap();
+            let version = i32::from_le_bytes(raw[0..4].try_into().unwrap());
+            if version < 2 {
+                continue;
+            }
             let script = t.get(1).unwrap().as_str().unwrap_or("");
             let input_index = t.get(2).unwrap().as_u64().unwrap();
             let hash_type = t.get(3).unwrap().as_i64().unwrap();
@@ -1561,13 +1571,11 @@ mod tests {
             TapSighashType::None, None, None, None
         );
 
-        test_taproot_sighash(
-            "eb93dbb901028c8515589dac980b6e7f8e4088b77ed866ca0d6d210a7218b6fd0f6b22dd6d7300000000eb4740a9047efc0e0000000000160014913da2128d8fcf292b3691db0e187414aa1783825802000000000000160014913da2128d8fcf292b3691db0e187414aa178382580200000000000017a9143dd27f01c6f7ef9bb9159937b17f17065ed01a0c875802000000000000160014d7630e19df70ada9905ede1722b800c0005f246641000000",
-            "013fed110000000000225120eb536ae8c33580290630fc495046e998086a64f8f33b93b07967d9029b265c55",
-            0,
-            "2441e8b0e063a2083ee790f14f2045022f07258ddde5ee01de543c9e789d80ae",
-            TapSighashType::NonePlusAnyoneCanPay, None, None, None
-        );
+        // The Bitcoin Core vector for TapSighashType::NonePlusAnyoneCanPay used transaction
+        // version 0xb9db93eb (a negative i32). Under Blackcoin a version < 2 transaction carries
+        // an nTime field, so that Bitcoin-format vector is not a valid Blackcoin transaction, and
+        // such versions never occur on the chain. The remaining sighash types are still covered
+        // by the version 2 / version 1 vectors above and below.
 
         test_taproot_sighash(
             "02000000017836b409a5fed32211407e44b971591f2032053f14701fb5b3a30c0ff382f2cc9c0100000061ac55f60288fb5600000000001976a9144ea02f6f182b082fb6ce47e36bbde390b6a41b5088ac58020000000000001976a9144ea02f6f182b082fb6ce47e36bbde390b6a41b5088ace4000000",
@@ -1578,7 +1586,7 @@ mod tests {
         );
 
         test_taproot_sighash(
-            "0100000001aa6deae89d5e0aaca58714fc76ef6f3c8284224888089232d4e663843ed3ab3eae010000008b6657a60450cb4c0000000000160014a3d42b5413ef0c0701c4702f3cd7d4df222c147058020000000000001976a91430b4ed8723a4ee8992aa2c8814cfe5c3ad0ab9d988ac5802000000000000160014365b1166a6ed0a5e8e9dff17a6d00bbb43454bc758020000000000001976a914bc98c51a84fe7fad5dc380eb8b39586eff47241688ac4f313247",
+            "010000001c0d666501aa6deae89d5e0aaca58714fc76ef6f3c8284224888089232d4e663843ed3ab3eae010000008b6657a60450cb4c0000000000160014a3d42b5413ef0c0701c4702f3cd7d4df222c147058020000000000001976a91430b4ed8723a4ee8992aa2c8814cfe5c3ad0ab9d988ac5802000000000000160014365b1166a6ed0a5e8e9dff17a6d00bbb43454bc758020000000000001976a914bc98c51a84fe7fad5dc380eb8b39586eff47241688ac4f313247",
             "0107af4e00000000002251202c36d243dfc06cb56a248e62df27ecba7417307511a81ae61aa41c597a929c69",
             0,
             "bf9c83f26c6dd16449e4921f813f551c4218e86f2ec906ca8611175b41b566df",

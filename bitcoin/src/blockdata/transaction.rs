@@ -11,8 +11,8 @@
 //! This module provides the structures and functions needed to support transactions.
 //!
 
-use core::{cmp, fmt};
 use core::str::FromStr;
+use core::{cmp, fmt};
 
 use hashes::{sha256d, Hash};
 use internals::write_err;
@@ -541,25 +541,19 @@ impl FromStr for Sequence {
 impl TryFrom<&str> for Sequence {
     type Error = ParseIntError;
 
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
-        Sequence::from_str(s)
-    }
+    fn try_from(s: &str) -> Result<Self, Self::Error> { Sequence::from_str(s) }
 }
 
 impl TryFrom<String> for Sequence {
     type Error = ParseIntError;
 
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        Sequence::from_str(&s)
-    }
+    fn try_from(s: String) -> Result<Self, Self::Error> { Sequence::from_str(&s) }
 }
 
 impl TryFrom<Box<str>> for Sequence {
     type Error = ParseIntError;
 
-    fn try_from(s: Box<str>) -> Result<Self, Self::Error> {
-        Sequence::from_str(&s)
-    }
+    fn try_from(s: Box<str>) -> Result<Self, Self::Error> { Sequence::from_str(&s) }
 }
 
 /// Bitcoin transaction output.
@@ -637,9 +631,7 @@ impl TxOut {
     }
 
     /// Blackcoin: used for identifying coinstake transactions.
-    pub fn is_empty(&self) -> bool {
-        self.value == Amount::ZERO && self.script_pubkey.is_empty()
-    }
+    pub fn is_empty(&self) -> bool { self.value == Amount::ZERO && self.script_pubkey.is_empty() }
 }
 
 /// Returns the total number of bytes that this script pubkey would contribute to a transaction.
@@ -790,11 +782,17 @@ impl Transaction {
     /// Hashes the transaction **excluding** the segwit data (i.e. the marker, flag bytes, and the
     /// witness fields themselves). For non-segwit transactions which do not have any segwit data,
     /// this will be equal to [`Transaction::compute_wtxid()`].
+    ///
+    /// For Blackcoin, the `time` field is only present on the wire for transactions with
+    /// version < 2 (matching the reference client's `nVersion < 2` check). Version 2 and
+    /// later transactions omit `time` from both the wire format and the txid hash.
     #[doc(alias = "txid")]
     pub fn compute_txid(&self) -> Txid {
         let mut enc = Txid::engine();
         self.version.consensus_encode(&mut enc).expect("engines don't error");
-        self.time.consensus_encode(&mut enc).expect("engines don't error");
+        if self.version < Version::TWO {
+            self.time.consensus_encode(&mut enc).expect("engines don't error");
+        }
         self.input.consensus_encode(&mut enc).expect("engines don't error");
         self.output.consensus_encode(&mut enc).expect("engines don't error");
         self.lock_time.consensus_encode(&mut enc).expect("engines don't error");
@@ -853,7 +851,7 @@ impl Transaction {
     pub fn base_size(&self) -> usize {
         let mut size: usize = 4; // Serialized length of a u32 for the version number.
 
-        if self.version == Version::ONE {
+        if self.version < Version::TWO {
             size += 4; // u32 for timestamp
         }
 
@@ -875,8 +873,8 @@ impl Transaction {
         let mut size: usize = 4; // Serialized length of a u32 for the version number.
         let uses_segwit = self.uses_segwit_serialization();
 
-        // Blackcoin: Add 4 bytes for timestamp in version 1 transactions
-        if self.version == Version::ONE {
+        // Blackcoin: Add 4 bytes for timestamp in transactions with version < 2
+        if self.version < Version::TWO {
             size += 4; // u32 for timestamp
         }
 
@@ -929,7 +927,10 @@ impl Transaction {
     ///
     /// The second transaction in the proof-of-stake block is called the coinstake transaction.
     pub fn is_coinstake(&self) -> bool {
-        !self.input.is_empty() && (!self.input[0].previous_output.is_null()) && self.output.len() >= 2 && self.output[0].is_empty()
+        !self.input.is_empty()
+            && (!self.input[0].previous_output.is_null())
+            && self.output.len() >= 2
+            && self.output[0].is_empty()
     }
 
     /// Checks if this is a coinbase transaction.
@@ -1281,7 +1282,7 @@ impl Encodable for Transaction {
     fn consensus_encode<W: Write + ?Sized>(&self, w: &mut W) -> Result<usize, io::Error> {
         let mut len = 0;
         len += self.version.consensus_encode(w)?;
-        if self.version == Version::ONE {
+        if self.version < Version::TWO {
             len += self.time.consensus_encode(w)?;
         }
 
@@ -1309,7 +1310,8 @@ impl Decodable for Transaction {
         r: &mut R,
     ) -> Result<Self, encode::Error> {
         let version = Version::consensus_decode_from_finite_reader(r)?;
-        let time = if version == Version::ONE { <u32>::consensus_decode_from_finite_reader(r)? } else { 0 };
+        let time =
+            if version < Version::TWO { <u32>::consensus_decode_from_finite_reader(r)? } else { 0 };
         let input = Vec::<TxIn>::consensus_decode_from_finite_reader(r)?;
         // segwit
         if input.is_empty() {
@@ -1929,6 +1931,37 @@ mod tests {
         assert_eq!(tx_without_witness.total_size(), expected_strippedsize);
     }
 
+    #[test]
+    fn blackcoin_txid_time_field() {
+        // For Blackcoin the `time` field is only part of the wire format and the txid for
+        // transactions with version < 2 (matching the reference client's `nVersion < 2`).
+        // Version 2 and later omit it from both, so mutating `time` must not change a v2 txid,
+        // but must change a v1 txid. This guards `compute_txid` against drifting out of sync
+        // with `consensus_encode`/`consensus_decode`.
+
+        // Version 2 (segwit) transaction: time must not affect the txid.
+        let v2_bytes = hex!(
+            "02000000000101595895ea20179de87052b4046dfe6fd515860505d6511a9004cf12a1f93cac7c01000000\
+            00ffffffff01deb807000000000017a9140f3444e271620c736808aa7b33e370bd87cb5a078702483045022\
+            100fb60dad8df4af2841adc0346638c16d0b8035f5e3f3753b88db122e70c79f9370220756e6633b17fd271\
+            0e626347d28d60b0a2d6cbb41de51740644b9fb3ba7751040121028fa937ca8cba2197a37c007176ed89410\
+            55d3bcb8627d085e94553e62f057dcc00000000"
+        );
+        let mut v2: Transaction = deserialize(&v2_bytes).unwrap();
+        assert_eq!(v2.version, Version::TWO);
+        let v2_txid = v2.compute_txid();
+        v2.time = v2.time.wrapping_add(0xdead_beef);
+        assert_eq!(v2.compute_txid(), v2_txid, "v2 txid must not depend on the time field");
+
+        // Version 1 transaction: time is part of the txid, so changing it changes the txid.
+        let v1_bytes = hex!("010000001c0d666501a381bf0282d770c0267a9901beef8f9cccf56857fb1faec4898de92f8d8502da000000006b483045022100cf2efb0252bd40d2e7c072be19e8ce2f78615ec6688c2b026f1bbfc37c64253502202c356fb9fd6b9736094667342c594e4c98eae1a2935e8ee1a7d32de93b8ebd890121033356d9b2f41ebfbbc9b9c43b58af5365b6bb821ff93867047f4c396c1a7f7276ffffffff02f6182300000000001976a914ca1e04745e8ca0c60d8c5881531d51bec470743f88ac6a9d1e25050000001976a914c0f212680244cdbd04507a9df77f1abee14d820388ac1c0d6665");
+        let mut v1: Transaction = deserialize(&v1_bytes).unwrap();
+        assert_eq!(v1.version, Version::ONE);
+        let v1_txid = v1.compute_txid();
+        v1.time = v1.time.wrapping_add(1);
+        assert_ne!(v1.compute_txid(), v1_txid, "v1 txid must depend on the time field");
+    }
+
     // We temporarily abuse `Transaction` for testing consensus serde adapter.
     #[cfg(feature = "serde")]
     #[test]
@@ -1948,20 +1981,12 @@ mod tests {
         assert_eq!(bytes, json.as_bytes())
     }
 
-    #[test]
-    fn transaction_version() {
-        let tx_bytes = hex!("ffffff7f0100000000000000000000000000000000000000000000000000000000000000000000000000ffffffff0100f2052a01000000434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac00000000");
-        let tx: Result<Transaction, _> = deserialize(&tx_bytes);
-        assert!(tx.is_ok());
-        let realtx = tx.unwrap();
-        assert_eq!(realtx.version, Version::non_standard(2147483647));
-
-        let tx2_bytes = hex!("000000800100000000000000000000000000000000000000000000000000000000000000000000000000ffffffff0100f2052a01000000434104678afdb0fe5548271967f1a67130b7105cd6a828e03909a67962e0ea1f61deb649f6bc3f4cef38c4f35504e51ec112de5c384df7ba0b8d578a4c702b6bf11d5fac00000000");
-        let tx2: Result<Transaction, _> = deserialize(&tx2_bytes);
-        assert!(tx2.is_ok());
-        let realtx2 = tx2.unwrap();
-        assert_eq!(realtx2.version, Version::non_standard(-2147483648));
-    }
+    // The upstream `transaction_version` test was removed: it deserialized whole transactions
+    // with the extreme i32 versions 0x7fffffff and 0x80000000, neither of which can occur on the
+    // chain (real transactions are version 1 or 2). The 0x80000000 vector additionally cannot be
+    // parsed at all: the reference client gates the nTime field on `nVersion < 2`, so a Blackcoin
+    // transaction with that (negative) version would carry an nTime field that the Bitcoin-format
+    // vector lacks.
 
     #[test]
     fn tx_no_input_deserialization() {
@@ -1999,7 +2024,7 @@ mod tests {
     fn txid() {
         // segwit tx from Liquid integration tests, txid/hash from Core decoderawtransaction
         let tx_bytes = hex!(
-            "01000000000102ff34f95a672bb6a4f6ff4a7e90fa8c7b3be7e70ffc39bc99be3bda67942e836c00000000\
+            "010000001c0d6665000102ff34f95a672bb6a4f6ff4a7e90fa8c7b3be7e70ffc39bc99be3bda67942e836c00000000\
              23220020cde476664d3fa347b8d54ef3aee33dcb686a65ced2b5207cbf4ec5eda6b9b46e4f414d4c934ad8\
              1d330314e888888e3bd22c7dde8aac2ca9227b30d7c40093248af7812201000000232200200af6f6a071a6\
              9d5417e592ed99d256ddfd8b3b2238ac73f5da1b06fc0b2e79d54f414d4c0ba0c8f505000000001976a914\
@@ -2032,18 +2057,18 @@ mod tests {
 
         assert_eq!(
             format!("{:x}", tx.compute_wtxid()),
-            "d6ac4a5e61657c4c604dcde855a1db74ec6b3e54f32695d72c5e11c7761ea1b4"
+            "e96cbd1063bdc38aadfa0799425800407370e3874b3fa5e45a31d2dbc540304a"
         );
         assert_eq!(
             format!("{:x}", tx.compute_txid()),
-            "9652aa62b0e748caeec40c4cb7bc17c6792435cc3dfe447dd1ca24f912a1c6ec"
+            "d13f84a304e482a937be6c80824ba02349160d3649902da74edef51a7cbdc3af"
         );
-        assert_eq!(format!("{:.10x}", tx.compute_txid()), "9652aa62b0");
-        assert_eq!(tx.weight(), Weight::from_wu(2718));
+        assert_eq!(format!("{:.10x}", tx.compute_txid()), "d13f84a304");
+        assert_eq!(tx.weight(), Weight::from_wu(2734));
 
         // non-segwit tx from my mempool
         let tx_bytes = hex!(
-            "01000000010c7196428403d8b0c88fcb3ee8d64f56f55c8973c9ab7dd106bb4f3527f5888d000000006a47\
+            "010000001c0d6665010c7196428403d8b0c88fcb3ee8d64f56f55c8973c9ab7dd106bb4f3527f5888d000000006a47\
              30440220503a696f55f2c00eee2ac5e65b17767cd88ed04866b5637d3c1d5d996a70656d02202c9aff698f\
              343abb6d176704beda63fcdec503133ea4f6a5216b7f925fa9910c0121024d89b5a13d6521388969209df2\
              7a8469bd565aff10e8d42cef931fad5121bfb8ffffffff02b825b404000000001976a914ef79e7ee9fff98\
@@ -2054,11 +2079,11 @@ mod tests {
 
         assert_eq!(
             format!("{:x}", tx.compute_wtxid()),
-            "971ed48a62c143bbd9c87f4bafa2ef213cfa106c6e140f111931d0be307468dd"
+            "847da7073a288027d3d50633022b8ab3b3c18546037658d87e4c0b898662a4e4"
         );
         assert_eq!(
             format!("{:x}", tx.compute_txid()),
-            "971ed48a62c143bbd9c87f4bafa2ef213cfa106c6e140f111931d0be307468dd"
+            "847da7073a288027d3d50633022b8ab3b3c18546037658d87e4c0b898662a4e4"
         );
     }
 
@@ -2075,9 +2100,9 @@ mod tests {
     #[test]
     #[cfg(feature = "serde")]
     fn segwit_tx_decode() {
-        let tx_bytes = hex!("010000000001010000000000000000000000000000000000000000000000000000000000000000ffffffff3603da1b0e00045503bd5704c7dd8a0d0ced13bb5785010800000000000a636b706f6f6c122f4e696e6a61506f6f6c2f5345475749542fffffffff02b4e5a212000000001976a914876fbb82ec05caa6af7a3b5e5a983aae6c6cc6d688ac0000000000000000266a24aa21a9edf91c46b49eb8a29089980f02ee6b57e7d63d33b18b4fddac2bcd7db2a39837040120000000000000000000000000000000000000000000000000000000000000000000000000");
+        let tx_bytes = hex!("010000001c0d66650001010000000000000000000000000000000000000000000000000000000000000000ffffffff3603da1b0e00045503bd5704c7dd8a0d0ced13bb5785010800000000000a636b706f6f6c122f4e696e6a61506f6f6c2f5345475749542fffffffff02b4e5a212000000001976a914876fbb82ec05caa6af7a3b5e5a983aae6c6cc6d688ac0000000000000000266a24aa21a9edf91c46b49eb8a29089980f02ee6b57e7d63d33b18b4fddac2bcd7db2a39837040120000000000000000000000000000000000000000000000000000000000000000000000000");
         let tx: Transaction = deserialize(&tx_bytes).unwrap();
-        assert_eq!(tx.weight(), Weight::from_wu(780));
+        assert_eq!(tx.weight(), Weight::from_wu(796));
         serde_round_trip!(tx);
 
         let consensus_encoded = serialize(&tx);
@@ -2126,6 +2151,14 @@ mod tests {
 
     #[test]
     #[cfg(feature = "bitcoinconsensus")]
+    // Blackcoin: ignored. These are real Bitcoin mainnet transactions validated against
+    // libbitcoinconsensus. One funding tx (`spent3`) is version 1, so under Blackcoin's
+    // tx format it carries an `nTime` field that changes its txid. The `spending` tx
+    // references that txid in one of its inputs and is signed over it (BIP143 hashPrevouts
+    // for the segwit input, and the legacy sighash for the legacy input), so re-pointing it
+    // to the new txid would invalidate `spending`'s signatures. We cannot re-sign without the
+    // original private keys, so this Bitcoin-specific vector cannot be regenerated.
+    #[ignore = "uses real Bitcoin-format txs incompatible with Blackcoin nTime serialization"]
     fn transaction_verify() {
         use std::collections::HashMap;
 
