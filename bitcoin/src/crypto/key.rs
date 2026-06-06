@@ -951,10 +951,12 @@ impl fmt::Display for FromWifError {
 
         match *self {
             Base58(ref e) => write_err!(f, "invalid base58"; e),
-            InvalidBase58PayloadLength(ref e) =>
-                write_err!(f, "decoded base58 data was an invalid length"; e),
-            InvalidAddressVersion(ref e) =>
-                write_err!(f, "decoded base58 data contained an invalid address version btye"; e),
+            InvalidBase58PayloadLength(ref e) => {
+                write_err!(f, "decoded base58 data was an invalid length"; e)
+            }
+            InvalidAddressVersion(ref e) => {
+                write_err!(f, "decoded base58 data contained an invalid address version btye"; e)
+            }
             Secp256k1(ref e) => write_err!(f, "private key validation failed"; e),
         }
     }
@@ -1011,8 +1013,9 @@ impl fmt::Display for ParsePublicKeyError {
         match self {
             Encoding(e) => write_err!(f, "string error"; e),
             InvalidChar(char) => write!(f, "hex error {}", char),
-            InvalidHexLength(got) =>
-                write!(f, "pubkey string should be 66 or 130 digits long, got: {}", got),
+            InvalidHexLength(got) => {
+                write!(f, "pubkey string should be 66 or 130 digits long, got: {}", got)
+            }
         }
     }
 }

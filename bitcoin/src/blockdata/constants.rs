@@ -170,8 +170,8 @@ impl ChainHash {
     /// `ChainHash` for mainnet blackcoin.
     // Blackcoin mainnet: "0x000001faef25dec4fbcf906e6242621df2c183bf232f263d0ba5b101911e4563"
     pub const BITCOIN: Self = Self([
-        99, 69, 30, 145, 1, 177, 165, 11, 61, 38, 47, 35, 191, 131, 193, 242, 29, 98, 66, 98,
-        110, 144, 207, 251, 196, 222, 37, 239, 250, 1, 0, 0
+        99, 69, 30, 145, 1, 177, 165, 11, 61, 38, 47, 35, 191, 131, 193, 242, 29, 98, 66, 98, 110,
+        144, 207, 251, 196, 222, 37, 239, 250, 1, 0, 0,
     ]);
     /// `ChainHash` for testnet blackcoin (alias for TESTNET3).
     #[deprecated(since = "0.32.4", note = "Use TESTNET3 instead")]
@@ -179,8 +179,8 @@ impl ChainHash {
     /// `ChainHash` for testnet3 blackcoin.
     // Blackcoin testnet: "0x0000724595fb3b9609d441cbfb9577615c292abf07d996d3edabc48de843642d"
     pub const TESTNET3: Self = Self([
-        45, 100, 67, 232, 141, 196, 171, 237, 211, 150, 217, 7, 191, 42, 41, 92, 97, 119, 149,
-        251, 203, 65, 212, 9, 150, 59, 251, 149, 69, 114, 0, 0
+        45, 100, 67, 232, 141, 196, 171, 237, 211, 150, 217, 7, 191, 42, 41, 92, 97, 119, 149, 251,
+        203, 65, 212, 9, 150, 59, 251, 149, 69, 114, 0, 0,
     ]);
     /// `ChainHash` for testnet4 blackcoin (same as testnet3 for Blackcoin).
     // Blackcoin doesn't have a separate testnet4, using same as testnet3
@@ -188,14 +188,14 @@ impl ChainHash {
     /// `ChainHash` for signet blackcoin.
     // Blackcoin signet: "0x0000724595fb3b9609d441cbfb9577615c292abf07d996d3edabc48de843642d"
     pub const SIGNET: Self = Self([
-        45, 100, 67, 232, 141, 196, 171, 237, 211, 150, 217, 7, 191, 42, 41, 92, 97, 119, 149,
-        251, 203, 65, 212, 9, 150, 59, 251, 149, 69, 114, 0, 0
+        45, 100, 67, 232, 141, 196, 171, 237, 211, 150, 217, 7, 191, 42, 41, 92, 97, 119, 149, 251,
+        203, 65, 212, 9, 150, 59, 251, 149, 69, 114, 0, 0,
     ]);
     /// `ChainHash` for regtest blackcoin.
     // Blackcoin regtest: "0x0000724595fb3b9609d441cbfb9577615c292abf07d996d3edabc48de843642d"
     pub const REGTEST: Self = Self([
-        45, 100, 67, 232, 141, 196, 171, 237, 211, 150, 217, 7, 191, 42, 41, 92, 97, 119, 149,
-        251, 203, 65, 212, 9, 150, 59, 251, 149, 69, 114, 0, 0
+        45, 100, 67, 232, 141, 196, 171, 237, 211, 150, 217, 7, 191, 42, 41, 92, 97, 119, 149, 251,
+        203, 65, 212, 9, 150, 59, 251, 149, 69, 114, 0, 0,
     ]);
 
     /// Returns the hash of the `network` genesis block for use as a chain hash.

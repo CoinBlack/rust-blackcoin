@@ -132,8 +132,9 @@ impl<E: fmt::Debug> fmt::Display for DecodeError<E> {
         use DecodeError::*;
 
         match *self {
-            TooManyBytes =>
-                write!(f, "attempted to decode object from an iterator that yielded too many bytes"),
+            TooManyBytes => {
+                write!(f, "attempted to decode object from an iterator that yielded too many bytes")
+            }
             Consensus(ref e) => write_err!(f, "invalid consensus encoding"; e),
             Other(ref other) => write!(f, "other decoding error: {:?}", other),
         }

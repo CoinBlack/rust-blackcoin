@@ -403,15 +403,15 @@ impl Witness {
     /// [Script::is_p2tr](crate::blockdata::script::Script::is_p2tr) to
     /// check whether this is actually a Taproot witness.
     pub fn tapscript(&self) -> Option<&Script> {
-            if self.is_empty() {
-                return None;
-            }
+        if self.is_empty() {
+            return None;
+        }
 
-            if self.taproot_annex().is_some() {
-                self.third_to_last().map(Script::from_bytes)
-            } else {
-                self.second_to_last().map(Script::from_bytes)
-            }
+        if self.taproot_annex().is_some() {
+            self.third_to_last().map(Script::from_bytes)
+        } else {
+            self.second_to_last().map(Script::from_bytes)
+        }
     }
 
     /// Get the taproot control block following BIP341 rules.
@@ -422,15 +422,15 @@ impl Witness {
     /// [Script::is_p2tr](crate::blockdata::script::Script::is_p2tr) to
     /// check whether this is actually a Taproot witness.
     pub fn taproot_control_block(&self) -> Option<&[u8]> {
-            if self.is_empty() {
-                return None;
-            }
+        if self.is_empty() {
+            return None;
+        }
 
-            if self.taproot_annex().is_some() {
-                self.second_to_last()
-            } else {
-                self.last()
-            }
+        if self.taproot_annex().is_some() {
+            self.second_to_last()
+        } else {
+            self.last()
+        }
     }
 
     /// Get the taproot annex following BIP341 rules.
@@ -457,9 +457,7 @@ impl Witness {
     /// This does not guarantee that this represents a P2WS [`Witness`]. See
     /// [Script::is_p2wsh](crate::blockdata::script::Script::is_p2wsh) to
     /// check whether this is actually a P2WSH witness.
-    pub fn witness_script(&self) -> Option<&Script> {
-        self.last().map(Script::from_bytes)
-    }
+    pub fn witness_script(&self) -> Option<&Script> { self.last().map(Script::from_bytes) }
 }
 
 impl Index<usize> for Witness {

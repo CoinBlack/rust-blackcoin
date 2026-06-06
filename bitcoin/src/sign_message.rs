@@ -53,8 +53,9 @@ mod message_signing {
                 InvalidLength => write!(f, "length not 65 bytes"),
                 InvalidEncoding(ref e) => write_err!(f, "invalid encoding"; e),
                 InvalidBase64 => write!(f, "invalid base64"),
-                UnsupportedAddressType(ref address_type) =>
-                    write!(f, "unsupported address type: {}", address_type),
+                UnsupportedAddressType(ref address_type) => {
+                    write!(f, "unsupported address type: {}", address_type)
+                }
             }
         }
     }

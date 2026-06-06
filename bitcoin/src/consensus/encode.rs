@@ -71,14 +71,17 @@ impl fmt::Display for Error {
 
         match *self {
             Io(ref e) => write_err!(f, "IO error"; e),
-            OversizedVectorAllocation { requested: ref r, max: ref m } =>
-                write!(f, "allocation of oversized vector: requested {}, maximum {}", r, m),
-            InvalidChecksum { expected: ref e, actual: ref a } =>
-                write!(f, "invalid checksum: expected {:x}, actual {:x}", e.as_hex(), a.as_hex()),
+            OversizedVectorAllocation { requested: ref r, max: ref m } => {
+                write!(f, "allocation of oversized vector: requested {}, maximum {}", r, m)
+            }
+            InvalidChecksum { expected: ref e, actual: ref a } => {
+                write!(f, "invalid checksum: expected {:x}, actual {:x}", e.as_hex(), a.as_hex())
+            }
             NonMinimalVarInt => write!(f, "non-minimal varint"),
             ParseFailed(ref s) => write!(f, "parse failed: {}", s),
-            UnsupportedSegwitFlag(ref swflag) =>
-                write!(f, "unsupported segwit version: {}", swflag),
+            UnsupportedSegwitFlag(ref swflag) => {
+                write!(f, "unsupported segwit version: {}", swflag)
+            }
         }
     }
 }
@@ -117,8 +120,9 @@ impl fmt::Display for FromHexError {
         use FromHexError::*;
 
         match *self {
-            OddLengthString(ref e) =>
-                write_err!(f, "odd length, failed to create bytes from hex"; e),
+            OddLengthString(ref e) => {
+                write_err!(f, "odd length, failed to create bytes from hex"; e)
+            }
             Decode(ref e) => write_err!(f, "decoding error"; e),
         }
     }
@@ -406,9 +410,7 @@ macro_rules! impl_int_encodable {
     ($ty:ident, $meth_dec:ident, $meth_enc:ident) => {
         impl Decodable for $ty {
             #[inline]
-            fn consensus_decode<R: Read + ?Sized>(
-                r: &mut R,
-            ) -> core::result::Result<Self, Error> {
+            fn consensus_decode<R: Read + ?Sized>(r: &mut R) -> core::result::Result<Self, Error> {
                 ReadExt::$meth_dec(r)
             }
         }
@@ -593,9 +595,7 @@ macro_rules! impl_array {
 
         impl Decodable for [u8; $size] {
             #[inline]
-            fn consensus_decode<R: Read + ?Sized>(
-                r: &mut R,
-            ) -> core::result::Result<Self, Error> {
+            fn consensus_decode<R: Read + ?Sized>(r: &mut R) -> core::result::Result<Self, Error> {
                 let mut ret = [0; $size];
                 r.read_slice(&mut ret)?;
                 Ok(ret)
