@@ -57,7 +57,7 @@ const INPUT_UTXO_VALUE: &str = "50 BTC";
 const INPUT_UTXO_DERIVATION_PATH: &str = "0h/0h/0h";
 
 // Grab an address to receive on: `bt generatenewaddress` (obviously contrived but works as an example).
-const RECEIVE_ADDRESS: &str = "bcrt1qcmnpjjjw78yhyjrxtql6lk7pzpujs3h244p7ae"; // The address to receive the coins we send.
+const RECEIVE_ADDRESS: &str = "blrt1qcmnpjjjw78yhyjrxtql6lk7pzpujs3h23x42th"; // The address to receive the coins we send.
 
 // These should be correct if the UTXO above should is for 50 BTC.
 const OUTPUT_AMOUNT_BTC: &str = "1 BTC";

@@ -100,7 +100,7 @@ fn senders_keys<C: Signing>(secp: &Secp256k1<C>) -> Keypair {
 ///
 /// (FWIW this is an arbitrary mainnet address from block 805222.)
 fn receivers_address() -> Address {
-    Address::from_str("bc1p0dq0tzg2r780hldthn5mrznmpxsxc0jux5f20fwj0z3wqxxk6fpqm7q0va")
+    Address::from_str("blk1p0dq0tzg2r780hldthn5mrznmpxsxc0jux5f20fwj0z3wqxxk6fpqpuaz0k")
         .expect("a valid address")
         .require_network(Network::Bitcoin)
         .expect("valid address for mainnet")

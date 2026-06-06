@@ -99,10 +99,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Just some addresses for outputs from our wallets. Not really important.
     let to_address =
-        Address::from_str("bcrt1p0p3rvwww0v9znrclp00uneq8ytre9kj922v8fxhnezm3mgsmn9usdxaefc")?
+        Address::from_str("blrt1p0p3rvwww0v9znrclp00uneq8ytre9kj922v8fxhnezm3mgsmn9us3jpgwq")?
             .require_network(Network::Regtest)?;
     let change_address =
-        Address::from_str("bcrt1pz449kexzydh2kaypatup5ultru3ej284t6eguhnkn6wkhswt0l7q3a7j76")?
+        Address::from_str("blrt1pz449kexzydh2kaypatup5ultru3ej284t6eguhnkn6wkhswt0l7qdfzrez")?
             .require_network(Network::Regtest)?;
     let amount_to_send_in_sats = Amount::ONE_BTC;
     let change_amount = UTXO_1
