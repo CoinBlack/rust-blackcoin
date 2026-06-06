@@ -573,17 +573,17 @@ mod tests {
         assert_eq!(serialize(&real_decode), some_block);
     }
 
-    // Check testnet block 000000000000045e0b1660b6445b5e5c5ab63c9a4f956be7e1e69be04fa4497b
+    // Check Blackcoin testnet block 0cceec6a17e5255f3cfb4a98bf99325363e39551b0abf5eea00b4d7e6efdac96
     #[test]
     fn segwit_block_test() {
         let params = Params::new(Network::Testnet);
-        let segwit_block = include_bytes!("../../tests/data/testnet_block_000000000000045e0b1660b6445b5e5c5ab63c9a4f956be7e1e69be04fa4497b.raw").to_vec();
+        let segwit_block = include_bytes!("../../tests/data/testnet_block_0cceec6a17e5255f3cfb4a98bf99325363e39551b0abf5eea00b4d7e6efdac96.raw").to_vec();
 
         let decode: Result<Block, _> = deserialize(&segwit_block);
 
-        let prevhash = hex!("2aa2f2ca794ccbd40c16e2f3333f6b8b683f9e7179b2c4d74906000000000000");
-        let merkle = hex!("10bc26e70a2f672ad420a6153dd0c28b40a6002c55531bfc99bf8994a8e8f67e");
-        let work = Work::from(0x257c3becdacc64_u64);
+        let prevhash = hex!("cb8abaee58f043ec14938f22003247ff0a82fc474caafdb8b9e5b21b994292e5");
+        let merkle = hex!("e5a1c51987af970649cb3c31ce86379e80868491e72e4e9dadf23a54cfe6a6be");
+        let work = Work::from(0x67c7aad7ed440_u64);
 
         assert!(decode.is_ok());
         let real_decode = decode.unwrap();
@@ -591,20 +591,24 @@ mod tests {
         assert_eq!(serialize(&real_decode.header.prev_blockhash), prevhash);
         assert_eq!(serialize(&real_decode.header.merkle_root), merkle);
         assert_eq!(real_decode.header.merkle_root, real_decode.compute_merkle_root().unwrap());
-        assert_eq!(real_decode.header.time, 1472004949);
-        assert_eq!(real_decode.header.bits, CompactTarget::from_consensus(0x1a06d450));
-        assert_eq!(real_decode.header.nonce, 1879759182);
+        assert_eq!(real_decode.header.time, 1780651568);
+        assert_eq!(real_decode.header.bits, CompactTarget::from_consensus(0x1a2777d7));
+        assert_eq!(real_decode.header.nonce, 0);
         assert_eq!(real_decode.header.work(), work);
+        // Blackcoin testnet is proof-of-stake (nonce 0), so the header does not
+        // satisfy the PoW target: validate_pow returns an error rather than the
+        // block hash. The block hash is still computed from the header as usual.
+        assert!(real_decode.header.validate_pow(real_decode.header.target()).is_err());
         assert_eq!(
-            real_decode.header.validate_pow(real_decode.header.target()).unwrap(),
-            real_decode.block_hash()
+            real_decode.block_hash(),
+            "0cceec6a17e5255f3cfb4a98bf99325363e39551b0abf5eea00b4d7e6efdac96".parse().unwrap()
         );
-        assert_eq!(real_decode.header.difficulty(&params), 2456598);
-        assert_eq!(real_decode.header.difficulty_float(), 2456598.4399242126);
+        assert_eq!(real_decode.header.difficulty(&params), 425076);
+        assert_eq!(real_decode.header.difficulty_float(), 425076.19146959524);
 
         assert_eq!(real_decode.total_size(), segwit_block.len());
-        assert_eq!(real_decode.base_size(), 4283);
-        assert_eq!(real_decode.weight(), Weight::from_wu(17168));
+        assert_eq!(real_decode.base_size(), 630);
+        assert_eq!(real_decode.weight(), Weight::from_wu(2556));
 
         assert!(real_decode.check_witness_commitment());
 

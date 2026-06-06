@@ -120,14 +120,14 @@ mod tests {
 
     #[test]
     fn both_merkle_root_functions_return_the_same_result() {
-        // testnet block 000000000000045e0b1660b6445b5e5c5ab63c9a4f956be7e1e69be04fa4497b
-        let segwit_block = include_bytes!("../../tests/data/testnet_block_000000000000045e0b1660b6445b5e5c5ab63c9a4f956be7e1e69be04fa4497b.raw");
+        // Blackcoin testnet block 0cceec6a17e5255f3cfb4a98bf99325363e39551b0abf5eea00b4d7e6efdac96
+        let segwit_block = include_bytes!("../../tests/data/testnet_block_0cceec6a17e5255f3cfb4a98bf99325363e39551b0abf5eea00b4d7e6efdac96.raw");
         let block: Block = deserialize(&segwit_block[..]).expect("Failed to deserialize block");
         assert!(block.check_merkle_root()); // Sanity check.
 
         let hashes_iter = block.txdata.iter().map(|obj| obj.compute_txid().to_raw_hash());
 
-        let mut hashes_array: [sha256d::Hash; 15] = [Hash::all_zeros(); 15];
+        let mut hashes_array: [sha256d::Hash; 3] = [Hash::all_zeros(); 3];
         for (i, hash) in hashes_iter.clone().enumerate() {
             hashes_array[i] = hash;
         }

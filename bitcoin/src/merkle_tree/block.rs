@@ -76,20 +76,19 @@ impl MerkleBlock {
     /// use bitcoin::{Block, MerkleBlock};
     ///
     /// // Block 80000
-    /// let block_bytes = Vec::from_hex("01000000ba8b9cda965dd8e536670f9ddec10e53aab14b20bacad2\
-    ///     7b9137190000000000190760b278fe7b8565fda3b968b918d5fd997f993b23674c0af3b6fde300b38f33\
-    ///     a5914ce6ed5b1b01e32f5702010000000100000000000000000000000000000000000000000000000000\
-    ///     00000000000000ffffffff0704e6ed5b1b014effffffff0100f2052a01000000434104b68a50eaa0287e\
-    ///     ff855189f949c1c6e5f58b37c88231373d8a59809cbae83059cc6469d65c665ccfd1cfeb75c6e8e19413\
-    ///     bba7fbff9bc762419a76d87b16086eac000000000100000001a6b97044d03da79c005b20ea9c0e1a6d9d\
-    ///     c12d9f7b91a5911c9030a439eed8f5000000004948304502206e21798a42fae0e854281abd38bacd1aee\
-    ///     d3ee3738d9e1446618c4571d1090db022100e2ac980643b0b82c0e88ffdfec6b64e3e6ba35e7ba5fdd7d\
-    ///     5d6cc8d25c6b241501ffffffff0100f2052a010000001976a914404371705fa9bd789a2fcd52d2c580b6\
-    ///     5d35549d88ac00000000").unwrap();
+    /// let block_bytes = Vec::from_hex("01000000ba8b9cda965dd8e536670f9ddec10e53aab14b20bacad27b91371900000000000955926ce6f0a5d047\
+    ///     a0ed22232406db6a9883f66c82960eff9c0299865238dd33a5914ce6ed5b1b01e32f5702010000001c0d666501\
+    ///     0000000000000000000000000000000000000000000000000000000000000000ffffffff0704e6ed5b1b014eff\
+    ///     ffffff0100f2052a01000000434104b68a50eaa0287eff855189f949c1c6e5f58b37c88231373d8a59809cbae8\
+    ///     3059cc6469d65c665ccfd1cfeb75c6e8e19413bba7fbff9bc762419a76d87b16086eac00000000010000001c0d\
+    ///     666501a6b97044d03da79c005b20ea9c0e1a6d9dc12d9f7b91a5911c9030a439eed8f500000000494830450220\
+    ///     6e21798a42fae0e854281abd38bacd1aeed3ee3738d9e1446618c4571d1090db022100e2ac980643b0b82c0e88\
+    ///     ffdfec6b64e3e6ba35e7ba5fdd7d5d6cc8d25c6b241501ffffffff0100f2052a010000001976a914404371705f\
+    ///     a9bd789a2fcd52d2c580b65d35549d88ac0000000000").unwrap();
     /// let block: Block = bitcoin::consensus::deserialize(&block_bytes).unwrap();
     ///
     /// // Create a merkle block containing a single transaction
-    /// let txid = "5a4ebf66822b0b2d56bd9dc64ece0bc38ee7844a23ff1d7320a88c5fdb2ad3e2".parse::<Txid>().unwrap();
+    /// let txid = "423c7ea8f82a551d598a429039284b9e4969f7ca863c0e414ea725bbc949e3bc".parse::<Txid>().unwrap();
     /// let match_txids: Vec<Txid> = vec![txid].into_iter().collect();
     /// let mb = MerkleBlock::from_block_with_predicate(&block, |t| match_txids.contains(t));
     ///
