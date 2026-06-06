@@ -992,8 +992,9 @@ impl fmt::Display for SignError {
             TaprootError(ref e) => write_err!(f, "taproot sighash"; e),
             UnknownOutputType => write!(f, "unable to determine the output type"),
             KeyNotFound => write!(f, "unable to find key"),
-            WrongSigningAlgorithm =>
-                write!(f, "attempt to sign an input with the wrong signing algorithm"),
+            WrongSigningAlgorithm => {
+                write!(f, "attempt to sign an input with the wrong signing algorithm")
+            }
             Unsupported => write!(f, "signing request currently unsupported"),
         }
     }
@@ -1067,8 +1068,9 @@ impl fmt::Display for ExtractTxError {
         use ExtractTxError::*;
 
         match *self {
-            AbsurdFeeRate { fee_rate, .. } =>
-                write!(f, "An absurdly high fee rate of {}", fee_rate),
+            AbsurdFeeRate { fee_rate, .. } => {
+                write!(f, "An absurdly high fee rate of {}", fee_rate)
+            }
             MissingInputValue { .. } => write!(
                 f,
                 "One of the inputs lacked value information (witness_utxo or non_witness_utxo)"
@@ -1639,14 +1641,14 @@ mod tests {
         #[test]
         #[should_panic(expected = "DuplicateKey(Key { type_value: 0, key: [] })")]
         fn invalid_vector_5() {
-            hex_psbt("70736274ff0100750200000001268171371edff285e937adeea4b37b78000c0566cbb3ad64641713ca42171bf60000000000feffffff02d3dff505000000001976a914d0c59903c5bac2868760e90fd521a4665aa7652088ac00e1f5050000000017a9143545e6e33b832c47050f24d3eeb93c9c03948bc787b32e1300000100fda5010100000000010289a3c71eab4d20e0371bbba4cc698fa295c9463afa2e397f8533ccb62f9567e50100000017160014be18d152a9b012039daf3da7de4f53349eecb985ffffffff86f8aa43a71dff1448893a530a7237ef6b4608bbb2dd2d0171e63aec6a4890b40100000017160014fe3e9ef1a745e974d902c4355943abcb34bd5353ffffffff0200c2eb0b000000001976a91485cff1097fd9e008bb34af709c62197b38978a4888ac72fef84e2c00000017a914339725ba21efd62ac753a9bcd067d6c7a6a39d05870247304402202712be22e0270f394f568311dc7ca9a68970b8025fdd3b240229f07f8a5f3a240220018b38d7dcd314e734c9276bd6fb40f673325bc4baa144c800d2f2f02db2765c012103d2e15674941bad4a996372cb87e1856d3652606d98562fe39c5e9e7e413f210502483045022100d12b852d85dcd961d2f5f4ab660654df6eedcc794c0c33ce5cc309ffb5fce58d022067338a8e0e1725c197fb1a88af59f51e44e4255b20167c8684031c05d1f2592a01210223b72beef0965d10be0778efecd61fcac6f79a4ea169393380734464f84f2ab30000000001003f0200000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000ffffffff010000000000000000036a010000000000000000").unwrap();
+            hex_psbt("70736274ff0100750200000001c4bc848e8b8eeeac7f69670b070cfb9a5a280ea7df590afc7dfa73995501ca8f0000000000feffffff02d3dff505000000001976a914d0c59903c5bac2868760e90fd521a4665aa7652088ac00e1f5050000000017a9143545e6e33b832c47050f24d3eeb93c9c03948bc787b32e1300000100fda901010000001c0d666500010289a3c71eab4d20e0371bbba4cc698fa295c9463afa2e397f8533ccb62f9567e50100000017160014be18d152a9b012039daf3da7de4f53349eecb985ffffffff86f8aa43a71dff1448893a530a7237ef6b4608bbb2dd2d0171e63aec6a4890b40100000017160014fe3e9ef1a745e974d902c4355943abcb34bd5353ffffffff0200c2eb0b000000001976a91485cff1097fd9e008bb34af709c62197b38978a4888ac72fef84e2c00000017a914339725ba21efd62ac753a9bcd067d6c7a6a39d05870247304402202712be22e0270f394f568311dc7ca9a68970b8025fdd3b240229f07f8a5f3a240220018b38d7dcd314e734c9276bd6fb40f673325bc4baa144c800d2f2f02db2765c012103d2e15674941bad4a996372cb87e1856d3652606d98562fe39c5e9e7e413f210502483045022100d12b852d85dcd961d2f5f4ab660654df6eedcc794c0c33ce5cc309ffb5fce58d022067338a8e0e1725c197fb1a88af59f51e44e4255b20167c8684031c05d1f2592a01210223b72beef0965d10be0778efecd61fcac6f79a4ea169393380734464f84f2ab30000000001003f0200000001ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff0000000000ffffffff010000000000000000036a010000000000000000").unwrap();
         }
 
         #[cfg(feature = "base64")]
         #[test]
         #[should_panic(expected = "DuplicateKey(Key { type_value: 0, key: [] })")]
         fn invalid_vector_5_base64() {
-            Psbt::from_str("cHNidP8BAHUCAAAAASaBcTce3/KF6Tet7qSze3gADAVmy7OtZGQXE8pCFxv2AAAAAAD+////AtPf9QUAAAAAGXapFNDFmQPFusKGh2DpD9UhpGZap2UgiKwA4fUFAAAAABepFDVF5uM7gyxHBQ8k0+65PJwDlIvHh7MuEwAAAQD9pQEBAAAAAAECiaPHHqtNIOA3G7ukzGmPopXJRjr6Ljl/hTPMti+VZ+UBAAAAFxYAFL4Y0VKpsBIDna89p95PUzSe7LmF/////4b4qkOnHf8USIk6UwpyN+9rRgi7st0tAXHmOuxqSJC0AQAAABcWABT+Pp7xp0XpdNkCxDVZQ6vLNL1TU/////8CAMLrCwAAAAAZdqkUhc/xCX/Z4Ai7NK9wnGIZeziXikiIrHL++E4sAAAAF6kUM5cluiHv1irHU6m80GfWx6ajnQWHAkcwRAIgJxK+IuAnDzlPVoMR3HyppolwuAJf3TskAinwf4pfOiQCIAGLONfc0xTnNMkna9b7QPZzMlvEuqFEyADS8vAtsnZcASED0uFWdJQbrUqZY3LLh+GFbTZSYG2YVi/jnF6efkE/IQUCSDBFAiEA0SuFLYXc2WHS9fSrZgZU327tzHlMDDPOXMMJ/7X85Y0CIGczio4OFyXBl/saiK9Z9R5E5CVbIBZ8hoQDHAXR8lkqASECI7cr7vCWXRC+B3jv7NYfysb3mk6haTkzgHNEZPhPKrMAAAAAAQA/AgAAAAH//////////////////////////////////////////wAAAAAA/////wEAAAAAAAAAAANqAQAAAAAAAAAA").unwrap();
+            Psbt::from_str("cHNidP8BAHUCAAAAAcS8hI6Lju6sf2lnCwcM+5paKA6n31kK/H36c5lVAcqPAAAAAAD+////AtPf9QUAAAAAGXapFNDFmQPFusKGh2DpD9UhpGZap2UgiKwA4fUFAAAAABepFDVF5uM7gyxHBQ8k0+65PJwDlIvHh7MuEwAAAQD9qQEBAAAAHA1mZQABAomjxx6rTSDgNxu7pMxpj6KVyUY6+i45f4UzzLYvlWflAQAAABcWABS+GNFSqbASA52vPafeT1M0nuy5hf////+G+KpDpx3/FEiJOlMKcjfva0YIu7LdLQFx5jrsakiQtAEAAAAXFgAU/j6e8adF6XTZAsQ1WUOryzS9U1P/////AgDC6wsAAAAAGXapFIXP8Ql/2eAIuzSvcJxiGXs4l4pIiKxy/vhOLAAAABepFDOXJboh79Yqx1OpvNBn1semo50FhwJHMEQCICcSviLgJw85T1aDEdx8qaaJcLgCX907JAIp8H+KXzokAiABizjX3NMU5zTJJ2vW+0D2czJbxLqhRMgA0vLwLbJ2XAEhA9LhVnSUG61KmWNyy4fhhW02UmBtmFYv45xenn5BPyEFAkgwRQIhANErhS2F3Nlh0vX0q2YGVN9u7cx5TAwzzlzDCf+1/OWNAiBnM4qODhclwZf7GoivWfUeROQlWyAWfIaEAxwF0fJZKgEhAiO3K+7wll0Qvgd47+zWH8rG95pOoWk5M4BzRGT4TyqzAAAAAAEAPwIAAAAB//////////////////////////////////////////8AAAAAAP////8BAAAAAAAAAAADagEAAAAAAAAAAA==").unwrap();
         }
 
         #[test]
@@ -1659,7 +1661,9 @@ mod tests {
                     input: vec![
                         TxIn {
                             previous_output: OutPoint {
-                                txid: "f61b1742ca13176464adb3cb66050c00787bb3a4eead37e985f2df1e37718126".parse().unwrap(),
+                                // Re-pointed to the non_witness_utxo's Blackcoin txid (its v1
+                                // nTime field changes the txid relative to the Bitcoin vector).
+                                txid: "8fca01559973fa7dfc0a59dfa70e285a9afb0c070b67697facee8e8b8e84bcc4".parse().unwrap(),
                                 vout: 0,
                             },
                             script_sig: ScriptBuf::new(),
@@ -1686,8 +1690,9 @@ mod tests {
                 inputs: vec![
                     Input {
                         non_witness_utxo: Some(Transaction {
-                            version: transaction::Version::TWO,
-                            time: 0,
+                            // Version 1, so it carries Blackcoin's nTime field.
+                            version: transaction::Version::ONE,
+                            time: 1701186844,
                             lock_time: absolute::LockTime::ZERO,
                             input: vec![
                                 TxIn {
@@ -1739,14 +1744,14 @@ mod tests {
                 ],
             };
 
-            let base16str = "70736274ff0100750200000001268171371edff285e937adeea4b37b78000c0566cbb3ad64641713ca42171bf60000000000feffffff02d3dff505000000001976a914d0c59903c5bac2868760e90fd521a4665aa7652088ac00e1f5050000000017a9143545e6e33b832c47050f24d3eeb93c9c03948bc787b32e1300000100fda5010100000000010289a3c71eab4d20e0371bbba4cc698fa295c9463afa2e397f8533ccb62f9567e50100000017160014be18d152a9b012039daf3da7de4f53349eecb985ffffffff86f8aa43a71dff1448893a530a7237ef6b4608bbb2dd2d0171e63aec6a4890b40100000017160014fe3e9ef1a745e974d902c4355943abcb34bd5353ffffffff0200c2eb0b000000001976a91485cff1097fd9e008bb34af709c62197b38978a4888ac72fef84e2c00000017a914339725ba21efd62ac753a9bcd067d6c7a6a39d05870247304402202712be22e0270f394f568311dc7ca9a68970b8025fdd3b240229f07f8a5f3a240220018b38d7dcd314e734c9276bd6fb40f673325bc4baa144c800d2f2f02db2765c012103d2e15674941bad4a996372cb87e1856d3652606d98562fe39c5e9e7e413f210502483045022100d12b852d85dcd961d2f5f4ab660654df6eedcc794c0c33ce5cc309ffb5fce58d022067338a8e0e1725c197fb1a88af59f51e44e4255b20167c8684031c05d1f2592a01210223b72beef0965d10be0778efecd61fcac6f79a4ea169393380734464f84f2ab300000000000000";
+            let base16str = "70736274ff0100750200000001c4bc848e8b8eeeac7f69670b070cfb9a5a280ea7df590afc7dfa73995501ca8f0000000000feffffff02d3dff505000000001976a914d0c59903c5bac2868760e90fd521a4665aa7652088ac00e1f5050000000017a9143545e6e33b832c47050f24d3eeb93c9c03948bc787b32e1300000100fda901010000001c0d666500010289a3c71eab4d20e0371bbba4cc698fa295c9463afa2e397f8533ccb62f9567e50100000017160014be18d152a9b012039daf3da7de4f53349eecb985ffffffff86f8aa43a71dff1448893a530a7237ef6b4608bbb2dd2d0171e63aec6a4890b40100000017160014fe3e9ef1a745e974d902c4355943abcb34bd5353ffffffff0200c2eb0b000000001976a91485cff1097fd9e008bb34af709c62197b38978a4888ac72fef84e2c00000017a914339725ba21efd62ac753a9bcd067d6c7a6a39d05870247304402202712be22e0270f394f568311dc7ca9a68970b8025fdd3b240229f07f8a5f3a240220018b38d7dcd314e734c9276bd6fb40f673325bc4baa144c800d2f2f02db2765c012103d2e15674941bad4a996372cb87e1856d3652606d98562fe39c5e9e7e413f210502483045022100d12b852d85dcd961d2f5f4ab660654df6eedcc794c0c33ce5cc309ffb5fce58d022067338a8e0e1725c197fb1a88af59f51e44e4255b20167c8684031c05d1f2592a01210223b72beef0965d10be0778efecd61fcac6f79a4ea169393380734464f84f2ab300000000000000";
 
             assert_eq!(unserialized.serialize_hex(), base16str);
             assert_eq!(unserialized, hex_psbt(base16str).unwrap());
 
             #[cfg(feature = "base64")]
             {
-                let base64str = "cHNidP8BAHUCAAAAASaBcTce3/KF6Tet7qSze3gADAVmy7OtZGQXE8pCFxv2AAAAAAD+////AtPf9QUAAAAAGXapFNDFmQPFusKGh2DpD9UhpGZap2UgiKwA4fUFAAAAABepFDVF5uM7gyxHBQ8k0+65PJwDlIvHh7MuEwAAAQD9pQEBAAAAAAECiaPHHqtNIOA3G7ukzGmPopXJRjr6Ljl/hTPMti+VZ+UBAAAAFxYAFL4Y0VKpsBIDna89p95PUzSe7LmF/////4b4qkOnHf8USIk6UwpyN+9rRgi7st0tAXHmOuxqSJC0AQAAABcWABT+Pp7xp0XpdNkCxDVZQ6vLNL1TU/////8CAMLrCwAAAAAZdqkUhc/xCX/Z4Ai7NK9wnGIZeziXikiIrHL++E4sAAAAF6kUM5cluiHv1irHU6m80GfWx6ajnQWHAkcwRAIgJxK+IuAnDzlPVoMR3HyppolwuAJf3TskAinwf4pfOiQCIAGLONfc0xTnNMkna9b7QPZzMlvEuqFEyADS8vAtsnZcASED0uFWdJQbrUqZY3LLh+GFbTZSYG2YVi/jnF6efkE/IQUCSDBFAiEA0SuFLYXc2WHS9fSrZgZU327tzHlMDDPOXMMJ/7X85Y0CIGczio4OFyXBl/saiK9Z9R5E5CVbIBZ8hoQDHAXR8lkqASECI7cr7vCWXRC+B3jv7NYfysb3mk6haTkzgHNEZPhPKrMAAAAAAAAA";
+                let base64str = "cHNidP8BAHUCAAAAAcS8hI6Lju6sf2lnCwcM+5paKA6n31kK/H36c5lVAcqPAAAAAAD+////AtPf9QUAAAAAGXapFNDFmQPFusKGh2DpD9UhpGZap2UgiKwA4fUFAAAAABepFDVF5uM7gyxHBQ8k0+65PJwDlIvHh7MuEwAAAQD9qQEBAAAAHA1mZQABAomjxx6rTSDgNxu7pMxpj6KVyUY6+i45f4UzzLYvlWflAQAAABcWABS+GNFSqbASA52vPafeT1M0nuy5hf////+G+KpDpx3/FEiJOlMKcjfva0YIu7LdLQFx5jrsakiQtAEAAAAXFgAU/j6e8adF6XTZAsQ1WUOryzS9U1P/////AgDC6wsAAAAAGXapFIXP8Ql/2eAIuzSvcJxiGXs4l4pIiKxy/vhOLAAAABepFDOXJboh79Yqx1OpvNBn1semo50FhwJHMEQCICcSviLgJw85T1aDEdx8qaaJcLgCX907JAIp8H+KXzokAiABizjX3NMU5zTJJ2vW+0D2czJbxLqhRMgA0vLwLbJ2XAEhA9LhVnSUG61KmWNyy4fhhW02UmBtmFYv45xenn5BPyEFAkgwRQIhANErhS2F3Nlh0vX0q2YGVN9u7cx5TAwzzlzDCf+1/OWNAiBnM4qODhclwZf7GoivWfUeROQlWyAWfIaEAxwF0fJZKgEhAiO3K+7wll0Qvgd47+zWH8rG95pOoWk5M4BzRGT4TyqzAAAAAAAAAA==";
                 assert_eq!(Psbt::from_str(base64str).unwrap(), unserialized);
                 assert_eq!(base64str, unserialized.to_string());
                 assert_eq!(Psbt::from_str(base64str).unwrap(), hex_psbt(base16str).unwrap());
@@ -1780,7 +1785,7 @@ mod tests {
 
         #[test]
         fn valid_vector_3() {
-            let psbt: Psbt = hex_psbt("70736274ff0100750200000001268171371edff285e937adeea4b37b78000c0566cbb3ad64641713ca42171bf60000000000feffffff02d3dff505000000001976a914d0c59903c5bac2868760e90fd521a4665aa7652088ac00e1f5050000000017a9143545e6e33b832c47050f24d3eeb93c9c03948bc787b32e1300000100fda5010100000000010289a3c71eab4d20e0371bbba4cc698fa295c9463afa2e397f8533ccb62f9567e50100000017160014be18d152a9b012039daf3da7de4f53349eecb985ffffffff86f8aa43a71dff1448893a530a7237ef6b4608bbb2dd2d0171e63aec6a4890b40100000017160014fe3e9ef1a745e974d902c4355943abcb34bd5353ffffffff0200c2eb0b000000001976a91485cff1097fd9e008bb34af709c62197b38978a4888ac72fef84e2c00000017a914339725ba21efd62ac753a9bcd067d6c7a6a39d05870247304402202712be22e0270f394f568311dc7ca9a68970b8025fdd3b240229f07f8a5f3a240220018b38d7dcd314e734c9276bd6fb40f673325bc4baa144c800d2f2f02db2765c012103d2e15674941bad4a996372cb87e1856d3652606d98562fe39c5e9e7e413f210502483045022100d12b852d85dcd961d2f5f4ab660654df6eedcc794c0c33ce5cc309ffb5fce58d022067338a8e0e1725c197fb1a88af59f51e44e4255b20167c8684031c05d1f2592a01210223b72beef0965d10be0778efecd61fcac6f79a4ea169393380734464f84f2ab30000000001030401000000000000").unwrap();
+            let psbt: Psbt = hex_psbt("70736274ff0100750200000001c4bc848e8b8eeeac7f69670b070cfb9a5a280ea7df590afc7dfa73995501ca8f0000000000feffffff02d3dff505000000001976a914d0c59903c5bac2868760e90fd521a4665aa7652088ac00e1f5050000000017a9143545e6e33b832c47050f24d3eeb93c9c03948bc787b32e1300000100fda901010000001c0d666500010289a3c71eab4d20e0371bbba4cc698fa295c9463afa2e397f8533ccb62f9567e50100000017160014be18d152a9b012039daf3da7de4f53349eecb985ffffffff86f8aa43a71dff1448893a530a7237ef6b4608bbb2dd2d0171e63aec6a4890b40100000017160014fe3e9ef1a745e974d902c4355943abcb34bd5353ffffffff0200c2eb0b000000001976a91485cff1097fd9e008bb34af709c62197b38978a4888ac72fef84e2c00000017a914339725ba21efd62ac753a9bcd067d6c7a6a39d05870247304402202712be22e0270f394f568311dc7ca9a68970b8025fdd3b240229f07f8a5f3a240220018b38d7dcd314e734c9276bd6fb40f673325bc4baa144c800d2f2f02db2765c012103d2e15674941bad4a996372cb87e1856d3652606d98562fe39c5e9e7e413f210502483045022100d12b852d85dcd961d2f5f4ab660654df6eedcc794c0c33ce5cc309ffb5fce58d022067338a8e0e1725c197fb1a88af59f51e44e4255b20167c8684031c05d1f2592a01210223b72beef0965d10be0778efecd61fcac6f79a4ea169393380734464f84f2ab30000000001030401000000000000").unwrap();
 
             assert_eq!(psbt.inputs.len(), 1);
             assert_eq!(psbt.outputs.len(), 2);
@@ -2270,6 +2275,7 @@ mod tests {
 
         let unsigned_tx = Transaction {
             version: transaction::Version::TWO,
+            time: 0,
             lock_time: absolute::LockTime::ZERO,
             input: vec![TxIn::default(), TxIn::default()],
             output: vec![TxOut::NULL],

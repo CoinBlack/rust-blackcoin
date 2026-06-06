@@ -93,9 +93,19 @@ impl Psbt {
                                     // Manually deserialized to ensure 0-input
                                     // txs without witnesses are deserialized
                                     // properly.
+                                    let version: crate::blockdata::transaction::Version =
+                                        Decodable::consensus_decode(&mut decoder)?;
+                                    // Blackcoin: the `time` field is only present on
+                                    // the wire for transactions with version < 2; v2+ omits it.
+                                    let time =
+                                        if version < crate::blockdata::transaction::Version::TWO {
+                                            Decodable::consensus_decode(&mut decoder)?
+                                        } else {
+                                            0
+                                        };
                                     tx = Some(Transaction {
-                                        version: Decodable::consensus_decode(&mut decoder)?,
-                                        time: Decodable::consensus_decode(&mut decoder)?,
+                                        version,
+                                        time,
                                         input: Decodable::consensus_decode(&mut decoder)?,
                                         output: Decodable::consensus_decode(&mut decoder)?,
                                         lock_time: Decodable::consensus_decode(&mut decoder)?,
