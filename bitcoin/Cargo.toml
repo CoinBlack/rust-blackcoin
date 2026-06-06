@@ -30,7 +30,7 @@ rustdoc-args = ["--cfg", "docsrs"]
 [dependencies]
 # Blackcoin: Use local bech32 with Blackcoin HRPs (blk, tblk, blrt)
 base58 = { package = "base58ck", version = "0.1.0", default-features = false }
-bech32 = { path = "../../rust-bech32-blackcoin", default-features = false, features = ["alloc"] }
+bech32 = { git = "https://github.com/CoinBlack/rust-bech32-blackcoin", branch = "master", default-features = false, features = ["alloc"] }
 hashes = { package = "bitcoin_hashes", version = "0.14.0", default-features = false, features = ["alloc", "io"] }
 hex = { package = "hex-conservative", version = "0.2.0", default-features = false, features = ["alloc"] }
 hex_lit = "0.1.1"
