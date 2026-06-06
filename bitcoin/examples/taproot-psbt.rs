@@ -230,6 +230,7 @@ fn generate_bip86_key_spend_tx(
     // CREATOR + UPDATER
     let tx1 = Transaction {
         version: transaction::Version::TWO,
+        time: 0,
         lock_time: absolute::LockTime::ZERO,
         input: vec![TxIn {
             previous_output: OutPoint { txid: input_utxo.txid.parse()?, vout: input_utxo.vout },
@@ -422,6 +423,7 @@ impl BenefactorWallet {
         // CREATOR + UPDATER
         let next_tx = Transaction {
             version: transaction::Version::TWO,
+            time: 0,
             lock_time,
             input: vec![TxIn {
                 previous_output: OutPoint { txid: tx.compute_txid(), vout: 0 },
@@ -565,6 +567,7 @@ impl BenefactorWallet {
 
             let next_tx = Transaction {
                 version: transaction::Version::TWO,
+                time: 0,
                 lock_time,
                 input: vec![TxIn {
                     previous_output: OutPoint { txid: tx.compute_txid(), vout: 0 },

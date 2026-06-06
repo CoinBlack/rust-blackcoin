@@ -45,7 +45,7 @@ use bitcoin::{
 #[test]
 fn serde_regression_block() {
     let segwit = include_bytes!(
-        "data/testnet_block_000000000000045e0b1660b6445b5e5c5ab63c9a4f956be7e1e69be04fa4497b.raw"
+        "data/testnet_block_0cceec6a17e5255f3cfb4a98bf99325363e39551b0abf5eea00b4d7e6efdac96.raw"
     );
     let block: Block = deserialize(segwit).unwrap();
     let got = serialize(&block).unwrap();

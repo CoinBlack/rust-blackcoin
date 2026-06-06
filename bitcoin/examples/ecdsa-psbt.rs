@@ -181,6 +181,7 @@ impl WatchOnly {
 
         let tx = Transaction {
             version: transaction::Version::TWO,
+            time: 0,
             lock_time: absolute::LockTime::ZERO,
             input: vec![TxIn {
                 previous_output: OutPoint { txid: INPUT_UTXO_TXID.parse()?, vout: INPUT_UTXO_VOUT },

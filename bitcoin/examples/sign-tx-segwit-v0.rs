@@ -50,7 +50,8 @@ fn main() {
 
     // The transaction we want to sign and broadcast.
     let mut unsigned_tx = Transaction {
-        version: transaction::Version::TWO,  // Post BIP-68.
+        version: transaction::Version::TWO, // Post BIP-68.
+        time: 0,
         lock_time: absolute::LockTime::ZERO, // Ignore the locktime.
         input: vec![input],                  // Input goes into index 0.
         output: vec![spend, change],         // Outputs, order does not matter.

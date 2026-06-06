@@ -31,13 +31,12 @@ fn psbt_sign_taproot() {
             _secp: &Secp256k1<C>,
         ) -> Result<Option<PrivateKey>, Self::Error> {
             match key_request {
-                KeyRequest::Bip32((mfp, _)) => {
+                KeyRequest::Bip32((mfp, _)) =>
                     if mfp == self.mfp {
                         Ok(Some(self.sk))
                     } else {
                         Err(SignError::KeyNotFound)
-                    }
-                }
+                    },
                 _ => Err(SignError::KeyNotFound),
             }
         }
@@ -71,12 +70,12 @@ fn psbt_sign_taproot() {
 
     let address = create_p2tr_address(tree.clone());
     assert_eq!(
-        "tb1pytee2mxz0f4fkrsqqws2lsgnkp8nrw2atjkjy2n9gahggsphr0gszaxxmv",
+        "tblk1pytee2mxz0f4fkrsqqws2lsgnkp8nrw2atjkjy2n9gahggsphr0gsycf6aa",
         address.to_string()
     );
 
     // m/86'/1'/0'/0/7
-    let to_address = "tb1pyfv094rr0vk28lf8v9yx3veaacdzg26ztqk4ga84zucqqhafnn5q9my9rz";
+    let to_address = "tblk1pyfv094rr0vk28lf8v9yx3veaacdzg26ztqk4ga84zucqqhafnn5qr7te9n";
     let to_address = Address::from_str(to_address).unwrap().assume_checked();
 
     // key path spend
