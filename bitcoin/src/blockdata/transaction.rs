@@ -381,8 +381,6 @@ impl Sequence {
     #[inline]
     pub fn is_final(&self) -> bool { !self.enables_absolute_lock_time() }
 
-    // Blackcoin
-    /*
     /// Returns true if the transaction opted-in to BIP125 replace-by-fee.
     ///
     /// Replace by fee is signaled by the sequence being less than 0xfffffffe which is checked by
@@ -391,7 +389,6 @@ impl Sequence {
     /// Note: Blackcoin does not use RBF, but this method is kept for API compatibility.
     #[inline]
     pub fn is_rbf(&self) -> bool { *self < Sequence::MIN_NO_RBF }
-    */
 
     /// Returns `true` if the sequence has a relative lock-time.
     #[inline]
@@ -954,7 +951,6 @@ impl Transaction {
     pub fn is_explicitly_rbf(&self) -> bool {
         self.input.iter().any(|input| input.sequence.is_rbf())
     }
-    */
 
     /// Returns true if this [`Transaction`]'s absolute timelock is satisfied at `height`/`time`.
     ///
